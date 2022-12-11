@@ -1,4 +1,4 @@
-module Day10 exposing (..)
+module Day10a exposing (..)
 
 import View exposing (..)
 import Util exposing (..)
@@ -170,60 +170,53 @@ type Instruction
     = Nop
     | Addx Int
 
-type alias RegisterX = Int
-type alias Pixel = Char
-
 type alias State = 
-    { x : RegisterX
-    , xs : List RegisterX }
+    { x : Int
+    , cycle : Int
+    , score : Int
+    , crt : String }
 
 part1 : String -> Int
 part1 input =
     input
         |> parseInput
         |> foldl executeInstruction initialState
-        |> .xs >> reverse
-        |> score
+        |> .score
 
 parseInput : String -> List Instruction
 parseInput input =
     input
         |> split "\n"
         |> filterMap toInstruction
+        |> concat
 
-toInstruction : String -> Maybe Instruction
+toInstruction : String -> Maybe (List Instruction)
 toInstruction line =
     case String.words line of
-        ["noop"] -> Just Nop
-        ["addx", n] -> Just (Addx (String.toInt n |> Maybe.withDefault 0))
+        ["noop"] -> Just [Nop]
+        ["addx", n] -> Just [Nop, (Addx (String.toInt n |> Maybe.withDefault 0))]
         _ -> Nothing
 
 initialState : State
 initialState = 
-    { x = 1, xs = [0] }
+    { x = 1, cycle = 1, score = 0, crt = "" }
 
 executeInstruction : Instruction -> State -> State
 executeInstruction instruction state =
-    case instruction of
-        Nop -> 
-            { state | xs = state.x :: state.xs }
-        Addx x ->
-            let
-                nextX = state.x + x
-            in
-            { state 
-            | xs = [nextX, state.x] ++ state.xs 
-            , x = nextX }
-
-score : List RegisterX -> Int
-score xs =
     let
-        positions = [20, 60, 100, 140, 180, 220]
-        getAtIndex pos = LE.getAt (pos - 1) xs
-        cycles = filterMap getAtIndex positions
-    in 
-    List.map2 (*) positions cycles
-        |> sum
+        scoreAddition =
+            if List.member state.cycle [ 20, 60, 100, 140, 180, 220 ] then
+                state.cycle * state.x
+            else
+                0
+        add = case instruction of
+            Addx n -> n
+            _ -> 0
+    in
+    { state 
+    | score = state.score + scoreAddition
+    , cycle = state.cycle + 1
+    , x = state.x + add }
 
 --------------------------------------------------------------
 
@@ -231,23 +224,33 @@ part2 : String -> String
 part2 input =
     input
         |> parseInput
-        |> foldl executeInstruction initialState
-        |> .xs >> reverse
-        |> getCrt
+        |> foldl executeInstruction2 initialState
+        |> .crt
+        |> String.toList
         |> LE.groupsOf 40
         |> map String.fromList
         |> String.join "\n"
 
-getCrt : List RegisterX -> List Pixel
-getCrt xs =
+executeInstruction2 : Instruction -> State -> State
+executeInstruction2 instruction state =
     let
-        getPixel cycle x =
-            if abs (modBy 40 cycle - x) <= 1 then
-                '#'
+        add = case instruction of
+            Addx n -> n
+            _ -> 0
+
+        pixel =
+            let
+                pos = modBy 40 (state.cycle - 1)
+            in
+            if abs (pos - state.x) <= 1 then
+                "#"
             else
-                ' '
+                " "
     in
-    List.indexedMap getPixel xs
+    { state 
+    | cycle = state.cycle + 1
+    , x = state.x + add
+    , crt = state.crt ++ pixel } 
 
 -------------------------------------------------
 
