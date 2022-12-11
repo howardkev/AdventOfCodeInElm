@@ -12,6 +12,7 @@ import String exposing (lines, split, toList)
 import Dict exposing (empty)
 import Fifo
 import BigInt exposing (..)
+import Array exposing (Array)
 
 todayDescription : PuzzleDescription
 todayDescription = { day = 11, title = "Monkey in the Middle" }
@@ -55,45 +56,49 @@ type alias Monkey =
     , divisibleBy : Int
     , trueThrow : Int
     , falseThrow : Int
-    , inspected : Int
-    , worryAdjust : BigInt }
+    , inspected : Int }
 
 type Operation
     = Add Int
     | Multiply Int
     | Square
+    
+type alias State =
+    { monkeys : Array Monkey
+    , worryAdjust : BigInt
+    , commonMod : BigInt }
 
-part1 : String -> Int
+part1 : String -> String
 part1 input =
     input
-        |> parseInput (BigInt.fromInt 3)
+        |> parseInput
+        |> initialState (BigInt.fromInt 3)
         |> runNTimes 20 round
-        |> Dict.values
-        |> map .inspected
-        |> sortWith descending
-        |> take 2
-        |> List.product
+        |> .monkeys
+        |> Array.map .inspected
+        |> Array.toList
+        |> score
 
-parseInput : BigInt -> String -> Dict Int Monkey
-parseInput worryAdjust input =
+parseInput : String -> Array Monkey
+parseInput input =
     input
-        |> split "\n\n"
-        |> filterMap (toMonkey worryAdjust)
-        |> toDictionary
+        |> String.split "\n\n"
+        |> List.filterMap toMonkey
+        |> Array.fromList
 
-toMonkey : BigInt -> String -> Maybe Monkey
-toMonkey worryAdjust string =
+toMonkey : String -> Maybe Monkey
+toMonkey string =
     string
         |> String.lines
-        |> parseDetails worryAdjust
-
-parseDetails : BigInt -> List String -> Maybe Monkey
-parseDetails worryAdjust lines =
+        |> parseDetails
+        
+parseDetails : List String -> Maybe Monkey
+parseDetails lines =
     case lines of
         [monkey, items, operation, test, true, false] 
             -> Just 
-                { id = head (ints monkey) |> Maybe.withDefault 0
-                , items = map BigInt.fromInt (ints items) 
+                { id = List.head (ints monkey) |> Maybe.withDefault 0
+                , items = List.map BigInt.fromInt (ints items) 
                 , operation = case String.words operation of
                     ["Operation:", "new", "=", "old", "*", "old"] 
                         -> Square
@@ -102,110 +107,112 @@ parseDetails worryAdjust lines =
                     ["Operation:", "new", "=", "old", "+", n] 
                         -> Add (String.toInt n |> Maybe.withDefault 0)
                     _ -> Debug.todo "bad data"
-                , divisibleBy = head (ints test) |> Maybe.withDefault 0
-                , trueThrow = head (ints true) |> Maybe.withDefault 0
-                , falseThrow = head (ints false) |> Maybe.withDefault 0
+                , divisibleBy = List.head (ints test) |> Maybe.withDefault 0
+                , trueThrow = List.head (ints true) |> Maybe.withDefault 0
+                , falseThrow = List.head (ints false) |> Maybe.withDefault 0
                 , inspected = 0
-                , worryAdjust = worryAdjust
                 }
         _ -> Nothing
 
-toDictionary : List Monkey -> Dict Int Monkey
-toDictionary monkeys =
+initialState : BigInt -> Array Monkey -> State
+initialState worryAdjust monkeys =
+    { monkeys = monkeys
+    , worryAdjust = worryAdjust
+    , commonMod = Array.map .divisibleBy monkeys
+          |> arrayProduct
+          |> BigInt.fromInt }
+          
+arrayProduct : Array Int -> Int
+arrayProduct arr =
+    arr |> Array.toList |> List.product
+    
+round : State -> State
+round state =
     let
-        ids = map .id monkeys
+        ids = List.range 0 (Array.length state.monkeys)
     in
-    LE.zip ids monkeys
-        |> Dict.fromList
-
-round : Dict Int Monkey -> Dict Int Monkey
-round monkeys =
-    foldl processOneMonkey monkeys (Dict.keys monkeys)
-
-processOneMonkey : Int -> Dict Int Monkey -> Dict Int Monkey
-processOneMonkey id monkeys =
-    case Dict.get id monkeys of
+    List.foldl processOneMonkey state ids
+    
+processOneMonkey : Int -> State -> State
+processOneMonkey id state =
+    case Array.get id state.monkeys of
         Just monkey ->
+            processItems monkey state
+        _ -> state
+        
+processItems : Monkey -> State -> State
+processItems monkey state =
+    case monkey.items of
+        [] -> state
+        item :: nextItems ->
             let
-                itemCount = List.length monkey.items
+                currentMonkey = 
+                    { monkey | items = nextItems, inspected = monkey.inspected + 1 }
+                destTarget = 
+                    getDestMonkey monkey item state
+                destMonkey = 
+                    addItemToMonkey destTarget state
+                nextState = { state | 
+                    monkeys = Array.set monkey.id currentMonkey state.monkeys }
+                nextState2 = { nextState | 
+                    monkeys = Array.set destMonkey.id destMonkey nextState.monkeys }
             in
-            runNTimes itemCount (processItem id) monkeys
-        _ -> monkeys
-
-processItem : Int -> Dict Int Monkey -> Dict Int Monkey
-processItem id monkeys =
-    case Dict.get id monkeys of
-        Just monkey 
-            -> case monkey.items of
-                    item :: remain ->
-                        let
-                            commonMod = map .divisibleBy (Dict.values monkeys)
-                                |> List.product
-                                |> BigInt.fromInt
-                            dest = destMonkey monkey item commonMod
-                            updated = updateMonkey dest monkeys
-                            newMonkey = { monkey | items = remain, inspected = monkey.inspected + 1 }
-                            maybeUpdate _ =
-                                Just newMonkey
-                            maybeUpdate2 _ =
-                                Just updated
-                            sourceDict = Dict.update id maybeUpdate monkeys
-                        in
-                        Dict.update updated.id maybeUpdate2 sourceDict
-                    _ -> monkeys
-        _ -> monkeys
-
-updateMonkey : (Int, BigInt) -> Dict Int Monkey -> Monkey
-updateMonkey (id, item) monkeys =
-    case Dict.get id monkeys of
-        Just monkey -> { monkey | items = monkey.items ++ [item] }
-        _ -> Debug.todo "bad case"
-
-destMonkey : Monkey -> BigInt -> BigInt -> (Int, BigInt)
-destMonkey monkey item commonMultiple =
+            processItems currentMonkey nextState2
+            
+addItemToMonkey (id, item) state =
+    case Array.get id state.monkeys of
+        Just monkey ->
+            { monkey | items = monkey.items ++ [item] }
+        _ -> Debug.todo "bad target monkey"
+            
+getDestMonkey : Monkey -> BigInt -> State -> (Int, BigInt)
+getDestMonkey monkey item state =
     let
         worry = case monkey.operation of
             Multiply n -> BigInt.mul item (BigInt.fromInt n)
             Add n -> BigInt.add item (BigInt.fromInt n)
             Square -> BigInt.mul item item
-        bored = 
-            if  monkey.worryAdjust == (BigInt.fromInt 1) then
-                case BigInt.modBy commonMultiple worry of
+        bored =
+            if  state.worryAdjust == (BigInt.fromInt 1) then
+                case BigInt.modBy state.commonMod worry of
                     Just n -> n
                     _ -> Debug.todo "mod error"
             else
-                BigInt.div worry (BigInt.fromInt 3)
+                BigInt.div worry state.worryAdjust
     in
     case BigInt.modBy (BigInt.fromInt monkey.divisibleBy) bored of
-        Just n -> if n == (BigInt.fromInt 0) then
+        Just n -> 
+            if n == (BigInt.fromInt 0) then
                 (monkey.trueThrow, bored)
             else
                 (monkey.falseThrow, bored)
-        _ -> Debug.todo "error"
+        _ -> Debug.todo "mod error"
+        
+score : List Int -> String
+score interactions =
+    let
+        top2 = interactions
+            |> List.sortWith descending
+            |> List.take 2
+            |> List.map BigInt.fromInt
+        bigProd = case top2 of
+            [a, b] -> BigInt.mul a b
+            _ -> BigInt.fromInt 0
+    in
+    bigProd |> BigInt.toString
 
 --------------------------------------------------------------
 
 part2 : String -> String
 part2 input =
     input
-        |> parseInput (BigInt.fromInt 1)
+        |> parseInput
+        |> initialState (BigInt.fromInt 1)
         |> runNTimes 10000 round
-        |> Dict.values
-        |> map .inspected
-        |> sortWith descending
+        |> .monkeys
+        |> Array.map .inspected
+        |> Array.toList
         |> score
-
-score : List Int -> String
-score interactions =
-    let
-        top2 = interactions
-            |> take 2
-            |> map BigInt.fromInt
-        bigProd = case top2 of
-            [a, b] -> BigInt.mul a b
-            _ -> BigInt.fromInt 0
-    in
-    bigProd |> BigInt.toString
 
 -------------------------------------------------
 
