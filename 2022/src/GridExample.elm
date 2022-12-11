@@ -123,6 +123,7 @@ init _ =
         , result = Nothing
         , description = todayDescription }, Cmd.none )
 
+toString : String -> String
 toString s =
     if String.startsWith "\"" s then
         String.dropLeft 1 s |> String.dropRight 1
@@ -131,11 +132,14 @@ toString s =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        p1 = Just (toString (Debug.toString (part1 model.input)))
-        p2 = Just (toString (Debug.toString (part2 model.input)))
-    in
-        mainUpdate msg model sampleInput p1 p2
+    case msg of
+        Puzzle1 -> (
+            { model | result = Just (toString (Debug.toString (part1 model.input))) }
+            , Cmd.none )
+        Puzzle2 -> (
+            { model | result = Just (toString (Debug.toString (part2 model.input))) }
+            , Cmd.none )
+        _ -> mainUpdate msg model sampleInput
     
 main : Program () Model Msg
 main =

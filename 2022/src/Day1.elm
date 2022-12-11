@@ -75,12 +75,15 @@ toString s =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        p1 = Just (toString (Debug.toString (part1 model.input)))
-        p2 = Just (toString (Debug.toString (part2 model.input)))
-    in
-        mainUpdate msg model sampleInput p1 p2
-    
+    case msg of
+        Puzzle1 -> (
+            { model | result = Just (toString (Debug.toString (part1 model.input))) }
+            , Cmd.none )
+        Puzzle2 -> (
+            { model | result = Just (toString (Debug.toString (part2 model.input))) }
+            , Cmd.none )
+        _ -> mainUpdate msg model sampleInput
+            
 main : Program () Model Msg
 main =
   Browser.element 

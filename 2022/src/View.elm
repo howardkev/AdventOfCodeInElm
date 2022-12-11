@@ -103,15 +103,9 @@ solveButtons loaded =
             Nothing ->
                 [ button alignRight LoadInput "Load" ])
 
-mainUpdate : Msg -> Model -> String -> Maybe String -> Maybe String -> ( Model, Cmd Msg )
-mainUpdate msg model sample p1 p2 =
+mainUpdate : Msg -> Model -> String -> ( Model, Cmd Msg )
+mainUpdate msg model sample =
     case msg of
-        Puzzle1 -> (
-            { model | result = p1 }
-            , Cmd.none)
-        Puzzle2 -> (
-            { model | result = p2 }
-            , Cmd.none)
         LoadInput ->
             (model, 
                 Http.get
@@ -124,3 +118,4 @@ mainUpdate msg model sample p1 p2 =
             ({ model | input = Maybe.withDefault "Error" model.puzzleInput }, Cmd.none)
         UseExample ->
             ({ model | input = String.trim sample }, Cmd.none)
+        _ -> (model, Cmd.none)
