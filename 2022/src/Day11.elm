@@ -51,7 +51,7 @@ Monkey 3:
 
 type alias Monkey =
     { id : Int
-    , items : List BigInt
+    , items : List Item
     , operation : Operation
     , divisibleBy : Int
     , trueThrow : Int
@@ -67,6 +67,8 @@ type alias State =
     { monkeys : Array Monkey
     , worryAdjust : BigInt
     , commonMod : BigInt }
+
+type alias Item = BigInt
 
 part1 : String -> String
 part1 input =
@@ -146,8 +148,8 @@ processItems monkey state =
         [] -> state
         item :: nextItems ->
             let
-                currentMonkey = 
-                    { monkey | items = nextItems, inspected = monkey.inspected + 1 }
+                currentMonkey = { monkey | 
+                    items = nextItems, inspected = monkey.inspected + 1 }
                 destTarget = 
                     getDestMonkey monkey item state
                 destMonkey = 
@@ -159,19 +161,21 @@ processItems monkey state =
             in
             processItems currentMonkey nextState2
             
+addItemToMonkey : (Int, Item) -> State -> Monkey
 addItemToMonkey (id, item) state =
     case Array.get id state.monkeys of
         Just monkey ->
             { monkey | items = monkey.items ++ [item] }
         _ -> Debug.todo "bad target monkey"
             
-getDestMonkey : Monkey -> BigInt -> State -> (Int, BigInt)
+getDestMonkey : Monkey -> BigInt -> State -> (Int, Item)
 getDestMonkey monkey item state =
     let
-        worry = case monkey.operation of
-            Multiply n -> BigInt.mul item (BigInt.fromInt n)
-            Add n -> BigInt.add item (BigInt.fromInt n)
-            Square -> BigInt.mul item item
+        worry = 
+            case monkey.operation of
+                Multiply n -> BigInt.mul item (BigInt.fromInt n)
+                Add n -> BigInt.add item (BigInt.fromInt n)
+                Square -> BigInt.mul item item
         bored =
             if  state.worryAdjust == (BigInt.fromInt 1) then
                 case BigInt.modBy state.commonMod worry of
