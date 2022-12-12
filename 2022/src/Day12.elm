@@ -10,7 +10,7 @@ import Set exposing (Set)
 import List exposing (map, filterMap, foldl, take, filter, concat, length, range, sort, sum, maximum, sortWith, head, tail, any, all, reverse)
 import String exposing (lines, split, toList)
 import Dict exposing (empty)
-import Fifo
+import Fifo exposing (Fifo)
 import GridExample exposing (Board)
 
 todayDescription : PuzzleDescription
@@ -26,106 +26,117 @@ acctuvwj
 abdefghi
 """
 
+type StartingPoint = Start | AllAs
+type alias Coordinate = (Int, Int)
+type alias Height = Int
+type alias Distance = Int
+
+type alias Board = (Coordinate, Coordinate, Dict Coordinate Height)
+
+type alias State = 
+    { start : Coordinate
+    , end : Coordinate
+    , heights : Dict Coordinate Height
+    , distances : Dict Coordinate Distance
+    , queue : Fifo Coordinate
+    }
+
+part1 : String -> Maybe Distance
 part1 input =
     input
         |> parseInput
-        |> findPath
+        |> toInitialState Start
+        |> findBestPath
         |> score
 
+parseInput : String -> Board
 parseInput input =
     input
-        |> split "\n"
-        |> parseBlock
+        |> String.lines
+        |> map String.toList
+        |> toBoard
 
-parseBlock lines =
+toBoard : List (List Char) -> Board
+toBoard rows =
     let
-        values = lines
-            |> map toList
-            |> List.indexedMap Tuple.pair
-            |> map expand
-            |> foldl Dict.union Dict.empty
-        start = Dict.filter (\_ v -> v == 'S') values
-            |> Dict.keys
+        getCode _ v =
+            case v of
+                'S' -> 1
+                'E' -> 26
+                n -> Char.toCode n - Char.toCode 'a' + 1
+        coordsWithChars = List.indexedMap (\y line -> List.indexedMap (\x value -> ((x, y), value)) line) rows
+            |> List.concat
+        start = filter (\(_, v) -> v == 'S') coordsWithChars
             |> head
-            |> Maybe.withDefault (0,0)
-        end = Dict.filter (\_ v -> v == 'E') values
-            |> Dict.keys
-            |> head
-            |> Maybe.withDefault (0,0)
+            |> Maybe.map Tuple.first
+            |> Maybe.withDefault (0, 0)
+        end = filter (\(_, v) -> v == 'E') coordsWithChars
+            |> List.head
+            |> Maybe.map Tuple.first
+            |> Maybe.withDefault (0, 0)
+        heights = Dict.fromList coordsWithChars
+            |> Dict.map getCode
     in
-        { start = start
-        , end = end
-        , heights = values
-        , next = Fifo.fromList [end]
-        , visited = Set.singleton end
-        , distances = Dict.fromList [(end, 0)]
-        }
+    (start, end, heights)
 
-findPath board =
-    case Fifo.remove board.next of
-        (Nothing, _) -> board
-        (Just top, remain) ->
-            let
-                (row, col) = top
-                myHeightCode = 
-                    case Dict.get top board.heights of
-                        Just 'S' -> Char.toCode 'a'
-                        Just 'E' -> Char.toCode 'z'
-                        Just c -> Char.toCode c
-                        Nothing -> Char.toCode 'a'
-                adj = [(row - 1, col), (row + 1, col),
-                        (row, col - 1), (row, col + 1)]
-                validJump _ v =
-                    let
-                        checkChar = 
-                            if v == 'E' then
-                                Char.toCode 'z'
-                            else if v == 'S' then
-                                Char.toCode 'a'
-                            else
-                                Char.toCode v
-                    in
-                    checkChar >= myHeightCode - 1
-                notVisited k _ =
-                    not (Set.member k board.visited)
-                values = getValues board.heights adj
-                        |> Dict.filter validJump
-                        |> Dict.filter notVisited
-                        |> Dict.keys
-                childDistance = 
-                    case Dict.get top board.distances of
-                        Just n -> n + 1
-                        Nothing -> 1
-            in
-            findPath { board 
-            | next = foldl (\v acc -> Fifo.insert v acc) remain values
-            , visited = foldl (\v acc -> Set.insert v acc) board.visited values
-            , distances = foldl (\k acc -> Dict.insert k childDistance acc) board.distances values
-            }
+toInitialState : StartingPoint -> Board -> State
+toInitialState startingPoint (start, end, heights) =
+    let
+        startPoints = case startingPoint of
+            Start -> 
+                [start]
+            AllAs ->
+                Dict.filter (\_ v -> v == 1) heights
+                    |> Dict.keys
+    in
+    { start = start, end = end, heights = heights
+    , distances = foldl (\sp dict -> Dict.insert sp 0 dict) Dict.empty startPoints
+    , queue = Fifo.fromList startPoints }
 
-getValues heights neighbors =
-    Dict.filter (\k _ -> List.member k neighbors) heights
+findBestPath : State -> State
+findBestPath state = 
+    case Fifo.remove state.queue of
+        (Nothing, _) -> state
+        (Just pos, remaining) ->
+            if pos == state.end then
+                state
+            else
+                let
+                    nextState = calculateOnePos pos remaining state
+                in
+                findBestPath nextState
 
-score board =
-    Dict.get board.start board.distances
+calculateOnePos : Coordinate -> Fifo Coordinate -> State -> State
+calculateOnePos (x, y) remaining state =
+    let
+        myValue = Dict.get (x, y) state.heights
+            |> Maybe.withDefault 0
+        myDist = Dict.get (x, y) state.distances
+            |> Maybe.withDefault 0
+        adjacent = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+        values = Dict.filter (\k _ -> List.member k adjacent) state.heights
+            |> Dict.filter (\_ v -> v <= myValue + 1)
+            |> Dict.filter (\k _ -> not <| Dict.member k state.distances)
+            |> Dict.keys
+    in
+    { state 
+    | queue = foldl (\v q -> Fifo.insert v q) remaining values
+    , distances = foldl (\v d -> Dict.insert v (myDist + 1) d) state.distances values
+    }
+
+score : State -> Maybe Distance
+score state =
+    Dict.get state.end state.distances
     
 --------------------------------------------------------------
 
+part2 : String -> Maybe Distance
 part2 input =
     input
         |> parseInput
-        |> findPath
-        |> score2
-
-score2 board =
-    let
-        aList = Dict.filter (\_ v -> v == 'a' || v == 'S') board.heights
-            |> Dict.keys
-        values = getValues board.distances aList
-            |> Dict.values
-    in
-    values
-        |> List.minimum
+        |> toInitialState AllAs
+        |> findBestPath
+        |> score
 
 -------------------------------------------------
 
