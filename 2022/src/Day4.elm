@@ -28,6 +28,7 @@ sampleInput =
 2-6,4-8
 """
 
+parseInput : String -> List (List Int)
 parseInput input =
     input
         |> split "\n"
@@ -35,17 +36,20 @@ parseInput input =
         --|> map (String.split " ")
         --|> map String.toList
 
+toRanges : List Int -> (Set Int, Set Int)
 toRanges pair =
     case pair of
         [a,b,c,d] -> (Set.fromList (List.range a b), Set.fromList (List.range c d))
         _ -> Debug.todo "bad input"
 
+check : (Set Int, Set Int) -> Bool
 check (a, b) =
     let
         inter = Set.intersect a b
     in
         inter == a || inter == b
 
+part1 : String -> Int
 part1 input =
     input
         |> parseInput
@@ -53,43 +57,20 @@ part1 input =
         |> map check
         |> countTrue
 
+check2 : (Set Int, Set Int) -> Bool
 check2 (a, b) =
     let
         inter = Set.intersect a b
     in
         Set.size inter > 0
 
+part2 : String -> Int
 part2 input =
     input
         |> parseInput
         |> map toRanges
         |> map check2
         |> countTrue
-
--------------------------------------------------
-isPalindrome : String -> Bool
-isPalindrome str =
-    case String.uncons str of
-        Nothing -> True
-        Just (_, "") -> True
-        Just (hd, tail) -> 
-            let
-                last = String.right 1 tail
-                middle = String.dropRight 1 tail
-            in
-                String.fromChar hd == last && isPalindrome middle
-
-sum1 : List number -> number
-sum1 values =
-    case values of
-        [] -> 0
-        x :: xs -> x + sum xs
-
-rev : String -> String
-rev str =
-    case String.uncons str of
-        Nothing -> ""
-        Just (hd, tail) -> rev tail ++ String.fromChar hd
 
 -------------------------------------------------
 

@@ -47,7 +47,7 @@ $ ls
 
 type alias Terminal =
     { lines : List TerminalLine
-    , sizes : Dict String Int
+    , sizes : Sizes
     , currentDir : List String}
         
 type TerminalLine =
@@ -55,12 +55,24 @@ type TerminalLine =
     | File String Int
     | Directory String
     | ChangeDir ChangeType
-    
+
+type alias Sizes = Dict (List String) Int
+ 
 type ChangeType =
     Root
     | ToDir String
     | Parent
 
+part1 : String -> Int
+part1 input =
+    input
+        |> parseInput
+        |> .sizes
+        |> Dict.values
+        |> List.filter (\x -> x <= 100000)
+        |> List.sum
+
+parseInput : String -> Terminal
 parseInput input =
     input
         |> split "\n"
@@ -68,6 +80,25 @@ parseInput input =
         |> toTerminal
         |> execute
 
+toTerminalLines : String -> Maybe TerminalLine
+toTerminalLines string =
+    case String.words string of
+        ["$", "ls"] -> Just ListDir
+        ["$", "cd", "/"] -> Just (ChangeDir Root)
+        ["$", "cd", ".."] -> Just (ChangeDir Parent)
+        ["$", "cd", dirName] -> Just (ChangeDir (ToDir dirName))
+        ["dir", dirName] -> Just (Directory dirName)
+        [fileSize, fileName] 
+            -> Maybe.map2 File (Just fileName) (String.toInt fileSize)
+        _ -> Nothing
+
+toTerminal : List TerminalLine -> Terminal
+toTerminal terminalLines =
+    { lines = terminalLines
+    , sizes = Dict.empty
+    , currentDir = [] }
+
+execute : Terminal -> Terminal
 execute terminal =
     case terminal.lines of
         [] -> terminal
@@ -77,6 +108,7 @@ execute terminal =
             in
             execute { nextTerminal | lines = xs }
             
+processOneLine : TerminalLine -> Terminal -> Terminal
 processOneLine line terminal =
     case line of
         ChangeDir Root -> 
@@ -90,6 +122,7 @@ processOneLine line terminal =
             { terminal | sizes = updateSizes size terminal }
         _ -> terminal
      
+updateSizes : Int -> Terminal -> Sizes
 updateSizes size terminal =
     let
         updateDict dir sizes = Dict.update dir (updateMaybeSize size) sizes
@@ -97,35 +130,23 @@ updateSizes size terminal =
     in
     List.foldl updateDict terminal.sizes dirs
         
+updateMaybeSize : Int -> Maybe Int -> Maybe Int
 updateMaybeSize size current =
     case current of
         Nothing -> Just size
         Just x -> Just (x + size)
-        
-toTerminalLines string =
-    case String.words string of
-        ["$", "ls"] -> Just ListDir
-        ["$", "cd", "/"] -> Just (ChangeDir Root)
-        ["$", "cd", ".."] -> Just (ChangeDir Parent)
-        ["$", "cd", dirName] -> Just (ChangeDir (ToDir dirName))
-        ["dir", dirName] -> Just (Directory dirName)
-        [fileSize, fileName] 
-            -> Maybe.map2 File (Just fileName) (String.toInt fileSize)
-        _ -> Nothing
-        
-toTerminal terminalLines =
-    { lines = terminalLines
-    , sizes = Dict.empty
-    , currentDir = [] }
 
-part1 input =
+------------------------------------------------------
+
+part2 : String -> Maybe Int
+part2 input =
     input
         |> parseInput
-        |> .sizes
+        |> solve2
         |> Dict.values
-        |> List.filter (\x -> x <= 100000)
-        |> List.sum
+        |> List.minimum
 
+solve2 : Terminal -> Sizes
 solve2 terminal =
     let
         total = Dict.get ["/"] terminal.sizes
@@ -134,13 +155,6 @@ solve2 terminal =
         need = 30000000 - space
     in
     Dict.filter (\_ v -> v >= need) terminal.sizes
-
-part2 input =
-    input
-        |> parseInput
-        |> solve2
-        |> Dict.values
-        |> List.minimum
 
 -------------------------------------------------
 

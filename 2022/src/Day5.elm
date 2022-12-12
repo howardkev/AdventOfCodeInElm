@@ -15,7 +15,7 @@ import Element exposing (Attribute)
 import Fifo
 
 todayDescription : PuzzleDescription
-todayDescription = { day = 5, title = "---" }
+todayDescription = { day = 5, title = "Supply Stacks" }
 
 sampleInput : String
 sampleInput =
@@ -26,20 +26,12 @@ move 2 from 2 to 1
 move 1 from 1 to 2
 """
 
+initial2 : List (List Char)
 initial2 = [['N', 'Z'], 
           ['D', 'C', 'M'], 
           ['P']]
 
---[G]                 [D] [R]        
---[W]         [V]     [C] [T] [M]    
---[L]         [P] [Z] [Q] [F] [V]    
---[J]         [S] [D] [J] [M] [T] [V]
---[B]     [M] [H] [L] [Z] [J] [B] [S]
---[R] [C] [T] [C] [T] [R] [D] [R] [D]
---[T] [W] [Z] [T] [P] [B] [B] [H] [P]
---[D] [S] [R] [D] [G] [F] [S] [L] [Q]
--- 1   2   3   4   5   6   7   8   9 
-
+initial : List (List Char)
 initial = [['G', 'W', 'L', 'J', 'B', 'R', 'T', 'D'], 
           ['C', 'W', 'S'], 
           ['M', 'T', 'Z', 'R'],
@@ -51,13 +43,13 @@ initial = [['G', 'W', 'L', 'J', 'B', 'R', 'T', 'D'],
           ['V', 'S', 'D', 'P', 'Q']
           ]
 
+parseInput : String -> List (List Int)
 parseInput input =
     input
         |> split "\n"
         |> map ints
-        --|> map (String.split " ")
-        --|> map String.toList
 
+one : List Int -> List (List Char) -> List (List Char)
 one move acc =
     case move of
         [_, b, c] ->
@@ -73,6 +65,7 @@ one move acc =
                 result
         _ -> Debug.todo "here"
 
+oneMove : List Int -> List (List Char) -> List (List Char)
 oneMove move acc =
     let
         count = case move of
@@ -81,12 +74,15 @@ oneMove move acc =
     in
     List.foldl (\_ b -> one move b) acc (range 0 (count - 1))
 
+moveCrates : List (List Int) -> List (List Char)
 moveCrates moves =
     List.foldl oneMove initial moves
 
+score : List (List Char) -> List Char
 score boxes = 
     map (\box -> Maybe.withDefault 'X' (head box)) boxes
 
+part1 : String -> String
 part1 input =
     input
         |> parseInput
@@ -94,6 +90,7 @@ part1 input =
         |> score
         |> String.fromList
 
+one2 : List Int -> List (List Char) -> List (List Char)
 one2 move acc =
     case move of
         [a, b, c] ->
@@ -109,6 +106,7 @@ one2 move acc =
                 result
         _ -> Debug.todo "here"
 
+oneMove2 : List Int -> List (List Char) -> List (List Char)
 oneMove2 move acc =
     let
         count = case move of
@@ -117,45 +115,17 @@ oneMove2 move acc =
     in
     List.foldl (\_ b -> one2 move b) acc (range 0 (count - 1))
 
+moveCrates2 : List (List Int) -> List (List Char)
 moveCrates2 moves =
     List.foldl one2 initial moves
 
---    [D]    
---[N] [C]    
---[Z] [M] [P]
--- 1   2   3
-
+part2 : String -> String
 part2 input =
     input
         |> parseInput
         |> moveCrates2
         |> score
         |> String.fromList
-
--------------------------------------------------
-isPalindrome : String -> Bool
-isPalindrome str =
-    case String.uncons str of
-        Nothing -> True
-        Just (_, "") -> True
-        Just (hd, tail) -> 
-            let
-                last = String.right 1 tail
-                middle = String.dropRight 1 tail
-            in
-                String.fromChar hd == last && isPalindrome middle
-
-sum1 : List number -> number
-sum1 values =
-    case values of
-        [] -> 0
-        x :: xs -> x + sum xs
-
-rev : String -> String
-rev str =
-    case String.uncons str of
-        Nothing -> ""
-        Just (hd, tail) -> rev tail ++ String.fromChar hd
 
 -------------------------------------------------
 
