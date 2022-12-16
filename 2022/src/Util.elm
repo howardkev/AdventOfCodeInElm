@@ -11,7 +11,7 @@ ints : String -> List Int
 ints input =
   let 
     regex = Maybe.withDefault Regex.never <|
-      Regex.fromString "[0-9]+"
+      Regex.fromString "-?[0-9]+"
     found = Regex.find regex
   in
     List.filterMap (.match >> String.toInt) (found input)

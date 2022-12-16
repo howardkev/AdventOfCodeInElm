@@ -1,6 +1,5 @@
-module Day14 exposing (..)
+module Day14Animated exposing (..)
 
-import View exposing (..)
 import Util exposing (..)
 import Browser
 import List.Extra as LE
@@ -11,7 +10,18 @@ import List exposing (map, filterMap, foldl, take, filter, concat, length, range
 import String exposing (lines, split, toList)
 import Dict exposing (empty)
 import Fifo exposing (Fifo)
-import Parser exposing (Parser, Trailing(..))
+import Element exposing (Element, Color, Attribute, rgb255, text, scrollbars, paragraph, centerX, centerY, padding, row, width, height, el, fill, spacing, alignLeft, alignRight, layout, column, fillPortion) 
+import Element.Border as Border 
+import Element.Background as Background
+import Element.Region as Region
+import Element.Input as Input
+import Element.Font as Font
+import Html exposing (Html)
+import Task
+import Time
+
+type alias PuzzleDescription = 
+    { day: Int, title: String }
 
 todayDescription : PuzzleDescription
 todayDescription = { day = 14, title = "Regolith Reservoir" }
@@ -22,46 +32,62 @@ sampleInput =
 498,4 -> 498,6 -> 496,6
 503,4 -> 502,4 -> 502,9 -> 494,9
 """
-
+type Msg
+    = Tick Time.Posix
+    
 type Material = Air | Rock | Sand
 type alias Coordinate = (Int, Int)
 type alias Grid = Dict Coordinate Material
 
-type alias State = 
-    { currentSand : Coordinate
+type alias Model =
+    { result : Maybe String
+    , description : PuzzleDescription 
+    , currentSand : Coordinate
     , grid : Grid
-    , bottom : Int
-    }
+    , bottom : Int}
+
+--type alias State = 
+--    { currentSand : Coordinate
+--    , grid : Grid
+--    , bottom : Int
+--    }
 
 part1 input =
     input
         |> parseInput
         |> toInitialState
         |> play
-        |> .grid
+        --|> .grid
         --|> score
-        |> printGrid
+        --|> printGrid
 
-printGrid grid =
+printGrid board =
     let
+        grid = board.grid
         asList = Dict.toList grid
-        bottom = foldl (\((x,y),_) b -> max y b) 0 asList + 1
+        --bottom = foldl (\((x,y),_) b -> max y b) 0 asList + 2
+        bottom = 11
         top = 0
-        right = foldl (\((x,y),_) b -> max x b) 0 asList + 3
-        left = foldl (\((x,y),_) b -> min x b) 1000000 asList - 3
+        --right = foldl (\((x,y),_) b -> max x b) 0 asList + 3
+        --left = foldl (\((x,y),_) b -> min x b) 1000000 asList - 3
+        left = 480
+        right = 520
         points = pointGrid left top (right - left + 1) (bottom - top + 2)
     in
-    displayBoard points grid (right - left + 1) (bottom)
+    displayBoard board.currentSand points grid (right - left + 1) (bottom)
 
-displayBoard points board w bottom =
+displayBoard current points board w bottom =
     let
         unitToChar v =
+            if v == current then
+                'o'
+            else
             case Dict.get v board of
                 Just Rock -> '#'
                 Just Sand -> 'o'
-                _ -> if (Tuple.second v) == bottom then 
-                        '-'
-                    else
+                _ -> --if (Tuple.second v) == bottom then 
+                    --    '-'
+                    --else
                         ' '
     in
     foldl (\v a -> (unitToChar v) :: a) [] points
@@ -120,7 +146,8 @@ toInitialState rockLines =
 
 play state =
     if Tuple.second state.currentSand == state.bottom then
-        state
+        --state
+        {state | currentSand = (500,0)}
     else
         let
             (x, y) = state.currentSand
@@ -141,7 +168,7 @@ play state =
                 else
                     state.grid
         in
-        play { state 
+        { state 
         | currentSand = nextPos
         , grid = nextGrid
         }
@@ -153,9 +180,9 @@ part2 input =
         |> parseInput
         |> toInitialState
         |> play2
-        |> .grid
+        --|> .grid
         --|> score
-        |> printGrid
+        --|> printGrid
 
 play2 state =
     let
@@ -189,7 +216,7 @@ play2 state =
         | grid = Dict.insert (x, y) Sand state.grid
         }
     else
-        play2 { state 
+        { state 
         | currentSand = nextPos
         , grid = nextGrid
         }
@@ -198,8 +225,14 @@ play2 state =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
-        , puzzleInput = Nothing
+    let
+        initial = String.trim sampleInput
+            |> parseInput
+            |> toInitialState
+    in
+    ( { currentSand = initial.currentSand
+        , grid = initial.grid
+        , bottom = initial.bottom
         , result = Nothing
         , description = todayDescription }, Cmd.none )
 
@@ -213,13 +246,45 @@ toString s =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Puzzle1 -> (
-            { model | result = Just (toString (Debug.toString (part1 model.input))) }
-            , Cmd.none )
-        Puzzle2 -> (
-            { model | result = Just (toString (Debug.toString (part2 model.input))) }
-            , Cmd.none )
-        _ -> mainUpdate msg model sampleInput
+        _ -> 
+            let
+                nextModel = model |> play
+                result = 
+                    nextModel
+                        |> printGrid
+            in
+            ({nextModel | result = Just result }, Cmd.none)
+
+view : Model -> Html Msg
+view model =
+    layout [] <|
+        column [ width fill, height fill, spacing 5, padding 5] <|
+            [ titleBar model.description
+            , resultDisplay model.result
+            ]
+
+titleBar : PuzzleDescription -> Element msg
+titleBar description =
+    el [ Region.heading 1, width fill, padding 10, centerX, Background.color color.lightGrey] <|
+        text ("--- Day " ++ String.fromInt description.day ++ ": " ++ description.title ++ " ---")
+
+resultDisplay : Maybe String -> Element msg
+resultDisplay result =
+    el [Font.family [Font.monospace], Border.width 2, Border.rounded 6, width fill, height fill, scrollbars ] <|
+        --paragraph [ centerX, centerY ] [toResult result]
+        column [] <|
+            List.map oneLine (String.split "\\n" (Maybe.withDefault "Loading ...." result))
+
+oneLine : String -> Element msg
+oneLine line =
+    if line == "" then
+        el [] <| text "---------"
+    else
+        el [] <| text line
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Time.every 20 Tick
     
 main : Program () Model Msg
 main =
@@ -228,3 +293,12 @@ main =
     , update = update 
     , view = view 
     , subscriptions = subscriptions }
+
+color : { blue : Color, darkCharcoal : Color, lightBlue : Color, lightGrey : Color, white : Color }
+color =
+    { blue = rgb255 0x72 0x9F 0xCF
+    , darkCharcoal = rgb255 0x2E 0x34 0x36
+    , lightBlue = rgb255 0xC5 0xE8 0xF7
+    , lightGrey = rgb255 0xE0 0xE0 0xE0
+    , white = rgb255 0xFF 0xFF 0xFF
+    }
