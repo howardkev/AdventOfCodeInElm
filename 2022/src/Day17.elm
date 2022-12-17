@@ -12,9 +12,11 @@ import String exposing (lines, split, toList)
 import Dict exposing (empty)
 import Fifo exposing (Fifo)
 import Parser exposing (Parser, Trailing(..))
+import Day10 exposing (State)
+import Array
 
 todayDescription : PuzzleDescription
-todayDescription = { day = 17, title = "---" }
+todayDescription = { day = 17, title = "Pyroclastic Flow" }
 
 sampleInput : String
 sampleInput =
@@ -56,17 +58,15 @@ rocks =
 part1 input =
     input
         |> parseInput
-        |> take 24
-        --|> toInitialState
-        |> foldl executeInstruction initialState
-        |> printGrid
+        |> toInitialState
+        |> executeInstructions
+        |> .finalHeight
+        --|> printGrid
 
 parseInput input =
     input
         |> String.toList
         |> filterMap toDirection
-        |> List.repeat 1000
-        |> concat
 
 toDirection c =
     case c of
@@ -74,26 +74,35 @@ toDirection c =
         '>' -> Just Right
         _ -> Nothing
 
-initialState =
+toInitialState commands =
     { currentPattern = 0
     , grid = Set.fromList [(0,0), (1,0), (2,0), (3,0), (4,0), (5,0), (6,0)]
     , bottom = 0
     , position = (3, -4)
     , stopped = 0
+    , commands = Array.fromList commands
+    , currentCommand = 0
+    , finalHeight = 0
     }
+
+executeInstructions state =
+    if state.stopped == 2022 then
+    --if state.stopped == 1000000000000 then
+        let
+            tall = foldl (\((x,y)) b -> min y b) 1000000 (Set.toList state.grid) 
+        in
+        { state | finalHeight = tall * -1 }
+    else
+        let
+            index = modBy (Array.length state.commands) state.currentCommand
+            instruction = Array.get index state.commands
+                |> Maybe.withDefault Right
+            nextState = executeInstruction instruction state
+        in
+        executeInstructions { nextState | currentCommand = index + 1 } 
 
 executeInstruction instruction state =
     let
-        done = 
-            if state.stopped == 2022 then
-            --if state.stopped == 1000000000000 then
-                let
-                    tall = foldl (\((x,y)) b -> min y b) 1000000 (Set.toList state.grid) 
-                        |> Debug.log "Done:"
-                in
-                True
-            else
-                False 
         (w,_,rock) = Dict.get state.currentPattern rocks |> Maybe.withDefault (0,0,[])
 
         canMoveSide (x,y) =
