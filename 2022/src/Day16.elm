@@ -257,14 +257,6 @@ getAllPairs list1 list2 =
             foldl (\ele list -> (score, ele) :: list) [] list2
         )  list1
 
--- 1850
--- 1945 - low
--- 2200 - low
--- 2300 - X
--- 2350 - X
--- 2500 - high
-
---2214
 -------------------------------------------------
 
 init : () -> ( Model, Cmd Msg )
