@@ -13,10 +13,10 @@ import Dict exposing (empty)
 import Fifo exposing (Fifo)
 import Parser exposing (Parser, Trailing(..))
 import Debug as D
-import Day10 exposing (State)
+import Array exposing (Array)
 
 todayDescription : PuzzleDescription
-todayDescription = { day = 19, title = "---" }
+todayDescription = { day = 19, title = "Not Enough Minerals" }
 
 sampleInput : String
 sampleInput =
@@ -24,7 +24,6 @@ sampleInput =
 Blueprint 1: Each ore robot costs 4 ore. Each clay robot costs 2 ore. Each obsidian robot costs 3 ore and 14 clay. Each geode robot costs 2 ore and 7 obsidian.
 Blueprint 2: Each ore robot costs 2 ore. Each clay robot costs 3 ore. Each obsidian robot costs 3 ore and 8 clay. Each geode robot costs 3 ore and 12 obsidian.
 """
-
 type alias Blueprint =
     { id: Int
     , ore: Int
@@ -33,28 +32,11 @@ type alias Blueprint =
     , geode: (Int,Int)
     }
 
-type alias State =
-    { minute : Int
-    , oreRobots : Int
-    , clayRobots : Int
-    , obsidianRobots : Int
-    , geodeRobots : Int
-    , ore : Int
-    , clay : Int
-    , obsidian : Int
-    , geode : Int
-    }
-
 part1 input =
     input
         |> parseInput
-        --|> take 1
-        |> map calculate
-        |> List.indexedMap score
-
-score index { geode } =
-    geode * (index + 1)
-        |> D.log "oneScore"
+        |> take 1
+        |> map solve
 
 parseInput input =
     input
@@ -69,114 +51,143 @@ toBlueprints line =
             Just { id = a, ore = b, clay = c, obsidian = (d,e), geode = (f,g)}
         _ -> Nothing
 
-calculate : Blueprint -> State
-calculate blueprint =
+solve blueprint =
     let
         _ = D.log "running blueprint" blueprint.id
+        cache = Dict.empty
+        minutes = 25
+        robots = [1, 0, 0, 0]
+        minerals = [0, 0, 0, 0]
     in
-    step Dict.empty blueprint
-        { minute = 0
-        , oreRobots = 1
-        , clayRobots = 0
-        , obsidianRobots = 0
-        , geodeRobots = 0
-        , ore = 0
-        , clay = 0
-        , obsidian = 0
-        , geode = 0
-        }
+    dfs blueprint cache minutes robots minerals
+        |> Tuple.second
+    
+type alias Key = (Int, List Int, List Int)
+type alias Cache = Dict Key Int
 
---step : Blueprint -> State -> State
-step cache blueprint state =
-    if state.minute == 3 then
-        state
+dfs : Blueprint -> Cache -> Int -> List Int -> List Int -> (Cache, Int)
+dfs bp cache minutes robots minerals =
+    let
+        key = (minutes, robots, minerals)
+        getMineralAt index list = LE.getAt index list |> Maybe.withDefault 0
+    in
+    if minutes == 0 then
+        (cache, getMineralAt 3 minerals)
     else
-        let
-            newMaterials = 
-                { state 
-                    | ore = state.ore + state.oreRobots 
-                    , clay = state.clay + state.clayRobots
-                    , obsidian = state.obsidian + state.obsidianRobots
-                    , geode = state.geode + state.geodeRobots
-                    , minute = state.minute + 1
-                }
-
-            justWait =
-                Just newMaterials
-
-            createOre = 
-                if state.ore >= blueprint.ore then
-                    Just {
-                        newMaterials
-                            | ore = newMaterials.ore - blueprint.ore
-                            , oreRobots = state.oreRobots + 1
-                    }
-                else
-                    Nothing
-
-            createClay = 
-                if state.ore >= blueprint.clay then
-                    Just {
-                        newMaterials
-                            | ore = newMaterials.ore - blueprint.clay
-                            , clayRobots = state.clayRobots + 1
-                    }
-                else
-                    Nothing
-
-            createObsidian =
+        case Dict.get key cache of
+            Just n -> (cache, n)
+            Nothing ->
                 let
-                    (ore, clay) = blueprint.obsidian
-                in
-                if state.ore >= ore && state.clay >= clay then
-                    Just {
-                        newMaterials
-                            | ore = newMaterials.ore - ore
-                            , clay = newMaterials.clay - clay
-                            , obsidianRobots = state.obsidianRobots + 1
-                    }
-                else
-                    Nothing
+                    newMinerals = List.map2 (\mineral bot ->
+                            mineral + bot
+                        ) minerals robots
 
-            createGeode =
-                let
-                    (ore, obsidian) = blueprint.geode
-                in
-                if state.ore >= ore && state.obsidian >= obsidian then
-                    Just {
-                        newMaterials
-                            | ore = newMaterials.ore - ore
-                            , obsidian = newMaterials.obsidian - obsidian
-                            , geodeRobots = state.geodeRobots + 1
-                    }
-                else
-                    Nothing
+                    buyNothing = Just (newMinerals, robots)
 
-            nextStates = filterMap identity [justWait, createOre, createClay, createObsidian, createGeode]
-                --|> D.log "nextStates"
-            in
-            pickBest (foldl (\next (csh, lst) -> 
-                let
-                    key = [next.minute, next.oreRobots, next.clayRobots
-                        , next.obsidianRobots, next.geodeRobots
-                        , next.ore, next.clay, next.obsidian, next.geode]
-                in
-                case Dict.get key csh of
-                    Just n -> 
-                        (csh, n::lst)
-                    _ ->
+                    createOre = 
+                        if getMineralAt 0 minerals >= bp.ore then
+                            Just 
+                                ( List.indexedMap (\i mineral ->
+                                        if i == 0 then
+                                            mineral - bp.ore
+                                        else
+                                            mineral
+                                    ) newMinerals
+                                , List.indexedMap (\i bot ->
+                                        if i == 0 then
+                                            bot + 1
+                                        else
+                                            bot
+                                    ) robots
+                                )
+                        else
+                            Nothing
+
+                    createClay = 
+                        if getMineralAt 0 minerals >= bp.clay then
+                            Just 
+                                ( List.indexedMap (\i mineral ->
+                                        if i == 0 then
+                                            mineral - bp.clay
+                                        else
+                                            mineral
+                                    ) newMinerals
+                                , List.indexedMap (\i bot ->
+                                        if i == 1 then
+                                            bot + 1
+                                        else
+                                            bot
+                                    ) robots
+                                )
+                        else
+                            Nothing
+
+                    createObsidian = 
                         let
-                            value = step csh blueprint next
-                            c = Dict.insert key value csh
+                            (ore, clay) = bp.obsidian
                         in
-                        (c, value::lst)
-            ) (cache, []) nextStates)
+                        if (getMineralAt 0 minerals >= ore &&
+                            getMineralAt 1 minerals >= clay) then
+                            Just 
+                                ( List.indexedMap (\i mineral ->
+                                        if i == 0 then
+                                            mineral - ore
+                                        else if i == 1 then
+                                            mineral - clay
+                                        else
+                                            mineral
+                                    ) newMinerals
+                                , List.indexedMap (\i bot ->
+                                        if i == 2 then
+                                            bot + 1
+                                        else
+                                            bot
+                                    ) robots
+                                )
+                        else
+                            Nothing
 
-pickBest : (a, List State) -> State
-pickBest (_, list) =
-    case LE.maximumBy .geode list of
-        Just n -> n
-        _ -> D.todo "no max"
+                    createGeode = 
+                        let
+                            (ore, obsidian) = bp.geode
+                        in
+                        if (getMineralAt 0 minerals >= ore &&
+                            getMineralAt 2 minerals >= obsidian) then
+                            Just 
+                                ( List.indexedMap (\i mineral ->
+                                        if i == 0 then
+                                            mineral - ore
+                                        else if i == 2 then
+                                            mineral - obsidian
+                                        else
+                                            mineral
+                                    ) newMinerals
+                                , List.indexedMap (\i bot ->
+                                        if i == 3 then
+                                            bot + 1
+                                        else
+                                            bot
+                                    ) robots
+                                )
+                        else
+                            Nothing
+
+                    nextStates = filterMap identity [buyNothing, createOre, createClay, createObsidian, createGeode]
+
+                    (c2, geodesList) = foldl (\(m, bots) (csh, lst) -> 
+                            let
+                                (c1, value) = dfs bp csh (minutes - 1) bots m
+                            in
+                            (c1, value::lst)
+                        ) (cache, []) nextStates
+                        --|> D.log "results"
+
+                    bestGeode = maximum geodesList
+                        |> Maybe.withDefault 0
+
+                    c3 = Dict.insert key bestGeode c2
+                in
+                (c3, bestGeode)
 
 --------------------------------------------------------------
 
