@@ -59,23 +59,23 @@ toCubes lines =
 
 solve : Cubes -> Int
 solve cubes =
-    let
-        solveHelper : Coordinate -> Int -> Int
-        solveHelper pos ans =
-            let
-                neighborCount = getNeighbors pos cubes
-                    |> Set.size
-            in
-            ans + 6 - neighborCount
-    in
-    Set.foldl solveHelper 0 cubes
+    cubes
+        |> Set.toList
+        |> map (getNeighbors cubes)
+        |> map (\neighbors -> 6 - Set.size neighbors)
+        |> List.sum
 
-getNeighbors : Coordinate -> Cubes -> Set Coordinate
-getNeighbors (x, y, z) cubes =
-    [ (x + 1, y, z), (x - 1, y, z), (x, y + 1, z)
-    , (x, y - 1, z), (x, y, z + 1), (x, y, z - 1) ]
-    |> filter (\friend -> Set.member friend cubes)
-    |> Set.fromList
+getNeighbors : Cubes -> Coordinate -> Set Coordinate
+getNeighbors cubes (x, y, z) =
+    [ (1, 0, 0), (-1, 0, 0), (0, 1, 0)
+    , (0, -1, 0), (0, 0, 1), (0, 0, -1) ]
+        |> map (moveCoordinate (x, y, z))
+        |> filter (\friend -> Set.member friend cubes)
+        |> Set.fromList
+
+moveCoordinate : Coordinate -> (Int, Int, Int) -> Coordinate
+moveCoordinate (x, y, z) (dx, dy, dz) =
+    (x + dx, y + dy, z + dz)
 
 --------------------------------------------------------------
 
@@ -133,12 +133,12 @@ removeEdges queue state =
             removeEdges nextQ nextState
 
 removeOne : Coordinate -> BFS -> Cubes -> (BFS, Cubes)
-removeOne pos remaining state =
+removeOne pos remaining cubes =
     let
-        neighbors = getNeighbors pos state 
+        neighbors = getNeighbors cubes pos
     in
     ( Set.foldl Fifo.insert remaining neighbors
-    , Set.foldl Set.remove state (Set.insert pos neighbors) )
+    , Set.foldl Set.remove cubes (Set.insert pos neighbors) )
 
 -------------------------------------------------
 
