@@ -25,25 +25,39 @@ Blueprint 1: Each ore robot costs 4 ore. Each clay robot costs 2 ore. Each obsid
 Blueprint 2: Each ore robot costs 2 ore. Each clay robot costs 3 ore. Each obsidian robot costs 3 ore and 8 clay. Each geode robot costs 3 ore and 12 obsidian.
 """
 
-type alias Key = (Int, List Int, List Int)
-type alias Cache = Dict Key Int
-
 type alias Blueprint =
     { id: Int
-    , ore: Int
-    , clay: Int
-    , obsidian: (Int, Int)
-    , geode: (Int,Int)
-    , maxSpend: List Int
-    , recipes: List (List (Int, Int))
+    , oreRobotCost: Int
+    , clayRobotCost: Int
+    , obsidianRobotCost: (Int, Int)
+    , geodeRobotCost: (Int,Int)
+    , maxOre: Int
+    , maxClay: Int
+    , maxObsidian: Int
     }
 
+type alias Substate = (List Int, List Int, Int)
+
+type alias State = 
+    { queue: Fifo Substate
+    , best: Int
+    }
+
+type alias Cache = Dict Substate Int
+
+part1 : String -> Int
 part1 input =
     input
         |> parseInput
-        |> take 1
-        |> List.map solve
+        |> List.map (solve 24)
+        |> List.indexedMap score
+        |> List.sum
 
+score : Int -> Int -> Int
+score index geodes =
+    geodes * (index + 1)
+
+parseInput : String -> List Blueprint
 parseInput input =
     input
         |> String.split "\n"
@@ -54,133 +68,132 @@ toBlueprints : List Int -> Maybe Blueprint
 toBlueprints line =
     case line of
         [a,b,c,d,e,f,g] ->
-            Just { id = a, ore = b, clay = c, obsidian = (d,e), geode = (f,g)
-                , maxSpend = [ max (max b c) (max d f), e, g]
-                , recipes = [[(b, 0)], [(c, 0)], [(d, 0), (e, 1)], [(f, 0), (g, 2)]]
-                }
+            let
+                maxOre = maximum [ b, c, d, f ] 
+                    |> Maybe.withDefault 0
+            in
+            Just { id = a
+                 , oreRobotCost = b
+                 , clayRobotCost = c
+                 , obsidianRobotCost = (d, e)
+                 , geodeRobotCost = (f, g) 
+                 , maxOre = maxOre
+                 , maxClay = e
+                 , maxObsidian = g
+                 }
         _ -> Nothing
 
-solve blueprint =
+solve : Int -> Blueprint -> Int
+solve minutes bp =
     let
+        _ = D.log "solving blueprint" bp.id
         cache = Dict.empty
-        minutes = 24
-        robots = [1, 0, 0, 0]
-        minerals = [0, 0, 0, 0]
+        queue = Fifo.fromList [([0, 0, 0, 0], [1, 0, 0, 0], minutes)]
     in
-    dfs blueprint cache minutes robots minerals
-    
-dfs : Blueprint -> Cache -> Int -> List Int -> List Int -> (Cache, Int)
-dfs bp cache minutes robots minerals =
-    let
-        key = (minutes, robots, minerals)
-        getAt i list = LE.getAt i list |> Maybe.withDefault 0
-    in
-    if minutes <= 20 then
-        --let
-        --    _ = Debug.log "reject" (minutes, robots, minerals)
-        --in
-        (cache, getAt 3 minerals)
-    else
-        case Dict.get key cache of
-            Just n -> (cache, n)
-            Nothing ->
-                let
-                    --_ = Debug.log "here" (minutes, robots, minerals)
-                    maxVal = (getAt 3 minerals) + (getAt 3 robots) * minutes
-                        
-                    toCheck = List.indexedMap (\robot recipe ->
-                            if robot /= 3 && getAt robot robots >= getAt robot bp.maxSpend then
-                                Nothing
-                            else
-                                Just (robot, recipe)
-                        ) bp.recipes
-                        |> List.filterMap identity
-                        
-                    hasNothing list =
-                        List.any (\a -> 
-                                case a of
-                                    Nothing -> True
-                                    _ -> False
-                            ) list
-                            
-                    waitCalculation list =
-                        list
-                            |> List.map (\(amount, rtype) ->
-                                    if getAt rtype robots == 0 then
-                                        Nothing
-                                    else
-                                        Just ((amount - (getAt rtype minerals)) // getAt rtype robots)
-                                )
-                        
-                    waits = toCheck
-                        |> List.map (\(a, b) -> 
-                                (a, waitCalculation b)
-                            )
-                        |> List.filterMap (\(a, b) ->
-                                if hasNothing b then
-                                    Nothing
-                                else
-                                    Just (a, List.filterMap identity b)
-                            )
-                        |> List.map (\(a, b) -> 
-                                (a, List.maximum b |> Maybe.withDefault 0)
-                            )
-                        
-                    remaining = List.map (\(a, wait) ->
-                            (a, minutes - wait - 1, wait)
-                        ) waits
-                        |> List.filter (\(_, b, _) -> b > 0)
-                        
-                    calculateMineralsH (bot,remain,wait) = 
-                        let
-                            --_ = Debug.log "zip" (bot,remain,wait)
-                            zip = LE.zip minerals robots
-                            recipe = LE.getAt bot bp.recipes |> Maybe.withDefault [(0,0)]
-                            amounts = List.map (\(x, y) -> x + y * (wait + 1)) zip
-                            adjusted = List.foldl (\(ramt, rtype) (amts, bots) ->
-                                    let
-                                        --_ = Debug.log "bots" (bots, bot, newBots)
-                                        newBots = List.indexedMap (\i b ->
-                                                if i == bot then
-                                                    b + 1
-                                                else
-                                                    b
-                                            ) bots
-                                        currentAmt = LE.getAt rtype amts |> Maybe.withDefault 0
-                                        newAmounts = 
-                                            LE.setAt rtype (min (currentAmt - ramt) (
-                                                    remain * (getAt rtype bp.maxSpend)
-                                                )) amts
-                                    in
-                                    ( newAmounts, newBots)
-                                ) (amounts, robots) recipe
-                        in
-                        ((bot,remain,wait), adjusted)
-                        
-                    nextRuns = remaining
-                        |> List.map calculateMineralsH
-                        
-                    (c2, geodesList) = List.foldl (\((bot, remain, wait), (amounts, bots)) (csh, lst) ->
-                            let
-                                --_ = Debug.log "inside" (minutes, (remain, bots, amounts))
-                                (c1, value) = dfs bp csh remain bots amounts
-                            in
-                            (c1, value::lst)
-                        ) (cache, []) nextRuns
-                    
-                    bestGeode = maximum (maxVal::geodesList)
-                        |> Maybe.withDefault 0
+    bfs bp cache { queue = queue, best = 0 }
+        |> D.log "  geodes"
 
-                    c3 = Dict.insert key bestGeode c2
-                    
-                in
-                (c3, bestGeode)
+bfs : Blueprint -> Cache -> State -> Int
+bfs bp cache state =
+    case Fifo.remove state.queue of
+        (Nothing, _) -> 
+            state.best
+        (Just top, remaining) ->
+            let
+                best = case top of 
+                    (minerals, _, _) ->
+                        max state.best (getAt 3 minerals)
+
+                optimized = optimize bp top
+                (_, _, t) = optimized
+            in
+            if t == 0 then
+                bfs bp cache { state | queue = remaining, best = best }
+            else
+                case Dict.get optimized cache of
+                    Just n -> 
+                        bfs bp cache { state | queue = remaining, best = n }
+                    Nothing ->
+                        bfs bp (Dict.insert optimized best cache) 
+                            { state 
+                                | best = best
+                                , queue = nextSteps bp optimized
+                                    |> foldl Fifo.insert remaining
+                            }
+
+optimize : Blueprint -> Substate -> Substate
+optimize bp (minerals, robots, t) =
+    case (minerals, robots) of
+        ([ore, clay, obsidian, geode], [r1, r2, r3, r4]) ->
+            let
+                r1_ = if r1 > bp.maxOre then bp.maxOre else r1
+                r2_ = if r2 > bp.maxClay then bp.maxClay else r2
+                r3_ = if r3 > bp.maxObsidian then bp.maxObsidian else r3
+
+                ore_ = if ore >= (t * bp.maxOre - r1_ * (t - 1)) then
+                        t * bp.maxOre - r1_ * (t - 1)
+                    else
+                        ore 
+
+                clay_ = if clay >= (t * bp.maxClay - r2_ * (t - 1)) then
+                        t * bp.maxClay - r2_ * (t - 1)
+                    else
+                        clay
+                
+                obsidian_ = if obsidian >= (t * bp.maxObsidian - r3_ * (t - 1)) then
+                        t * bp.maxObsidian - r3_ * (t - 1)
+                    else
+                        obsidian
+            in
+            ([ore_, clay_, obsidian_, geode], [r1_, r2_, r3_, r4], t)
+            
+        _ ->
+            (minerals, robots, t)
+
+nextSteps : Blueprint-> Substate -> List Substate
+nextSteps bp (minerals, robots, t) =
+    let
+        oreRC = bp.oreRobotCost
+        clayRC = bp.clayRobotCost
+        obsidianRCore = Tuple.first bp.obsidianRobotCost
+        obsidianRCclay = Tuple.second bp.obsidianRobotCost
+        geodeRCore = Tuple.first bp.geodeRobotCost
+        geodeRCobsidian = Tuple.second bp.geodeRobotCost
+    in
+    case (minerals, robots) of
+        ([ore, clay, obsidian, geode], [r1, r2, r3, r4]) ->
+                [([ore + r1, clay + r2, obsidian + r3, geode + r4], [r1, r2, r3, r4], t - 1)]
+                |> (++) (if ore >= oreRC then
+                        [([ore - oreRC + r1, clay + r2, obsidian + r3, geode + r4], [r1 + 1, r2, r3, r4], t - 1)]
+                    else
+                        [])
+                |> (++) (if ore >= clayRC then
+                        [([ore - clayRC + r1, clay + r2, obsidian + r3, geode + r4], [r1, r2 + 1, r3, r4], t - 1)]
+                    else
+                        [])
+                |> (++) (if ore >= obsidianRCore && clay >= obsidianRCclay then
+                        [([ore - obsidianRCore + r1, clay - obsidianRCclay + r2, obsidian + r3, geode + r4], [r1, r2, r3 + 1, r4], t - 1)]
+                    else
+                        [])
+                |> (++) (if ore >= geodeRCore && obsidian >= geodeRCobsidian then
+                        [([ore - geodeRCore + r1, clay + r2, obsidian - geodeRCobsidian + r3, geode + r4], [r1, r2, r3, r4 + 1], t - 1)]
+                    else
+                        [])
+        _ -> []
+
+getAt : Int -> List Int -> Int
+getAt i list = 
+    LE.getAt i list |> Maybe.withDefault 0
 
 --------------------------------------------------------------
 
+part2 : String -> Int
 part2 input =
    input
         |> parseInput
+        |> take 3
+        |> List.map (solve 32)
+        |> List.product
 
 -------------------------------------------------
 
