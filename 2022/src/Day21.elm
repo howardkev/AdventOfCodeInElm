@@ -18,7 +18,7 @@ import Parser exposing (int)
 import BigInt exposing (BigInt)
 
 todayDescription : PuzzleDescription
-todayDescription = { day = 21, title = "---" }
+todayDescription = { day = 21, title = "Monkey Math" }
 
 sampleInput : String
 sampleInput =
