@@ -46,22 +46,16 @@ type MonkeyType
     | Multiply String String
     | Subtract String String
     | Divide String String
+    | Human
 
 type alias Monkey = (String, MonkeyType)
-
 type alias State = Dict String MonkeyType
 
-part1 : String -> Float
+part1 : String -> Maybe Float
 part1 input =
     input
         |> parseInput
-        |> calculate "root" (-1) 
-
-getValue : Maybe MonkeyType -> Float
-getValue monkey =
-    case monkey of
-        Just (Yell n) -> n
-        _ -> 0.0
+        |> calculate "root"
 
 parseInput : String -> State
 parseInput input =
@@ -83,83 +77,126 @@ toMonkey line =
         [a, b, "+", d] -> Just (extractName a, Add b d)
         _ -> Nothing
 
-calculate : String -> Float -> State -> Float
-calculate id h dict =
+calculate : String -> State -> Maybe Float
+calculate monkeyName dict =
     let
         getCommand name =
             dict
                 |> Dict.get name
-                |> Maybe.withDefault (Yell 0)
 
         lookup name =
-            if name == "humn" && h >= 0 then
-                h
-            else
-                case Dict.get name dict of
-                    Just (Yell n) -> n
-                    _ -> calculate name h dict
+            case Dict.get name dict of
+                Just (Yell n) -> Just n
+                _ -> calculate name dict
 
-        helper v = case v of
+        valueOf command = case command of
             Multiply a b ->
-                (lookup a) * (lookup b)
+                Maybe.map2 (*) (lookup a) (lookup b)
 
             Add a b ->
-                (lookup a) + (lookup b)
+                Maybe.map2 (+) (lookup a) (lookup b)
                 
             Subtract a b ->
-                (lookup a) - (lookup b)
+                Maybe.map2 (-) (lookup a) (lookup b)
                 
             Divide a b -> 
-                (lookup a) / (lookup b)
+                Maybe.map2 (/) (lookup a) (lookup b)
 
-            Yell n -> n
+            Yell n -> Just n
+
+            Human -> Nothing
     in
-    helper (getCommand id)
+    getCommand monkeyName
+        |> Maybe.andThen valueOf
 
 --------------------------------------------------------------
 
-part2 : String -> Float
+part2 : String -> Maybe Float
 part2 input =
     input
         |> parseInput
-        |> execute
+        |> solve
 
-execute : State -> Float
-execute dict =
+solve : State -> Maybe Float
+solve dict =
     let
         root = dict
-            |> Dict.filter (\k _ -> k == "root")
-            |> Dict.values
+            |> Dict.get "root"
+            |> Maybe.andThen (\monkey ->
+                    case monkey of
+                        Add a b -> Just (a, b)
+                        _ -> Nothing
+                )
 
-        (name1, name2) = case root of
-            [Add a b] -> (a, b)
-            _ -> ("","")
-
-        firstZero = calculate name1 0 dict
-        firstOne = calculate name1 100 dict
-        secondZero = calculate name2 0 dict
-        hi = 1e20
+        humanRemoved = Dict.filter (\k _ -> k /= "humn") dict
     in
-    if firstZero == firstOne then
-        binarySearch dict name2 firstZero 0 hi
-    else
-        binarySearch dict name1 secondZero 0 hi
+    case root of
+        Just (name1, name2) ->
+            let
+                firstResult = calculate name1 humanRemoved
+                secondResult = calculate name2 humanRemoved
+            in
+            case (firstResult, secondResult) of
+                (Nothing, Just target) ->
+                    reverseCalculate humanRemoved name1 target
+                (Just target, Nothing) ->
+                    reverseCalculate humanRemoved name2 target
+                _ -> Nothing
 
-binarySearch : State -> String -> Float -> Float -> Float -> Float
-binarySearch dict name target lo hi =
+        _ -> Nothing
+
+reverseCalculate : State -> String -> Float -> Maybe Float
+reverseCalculate dict monkeyName target =
     let
-        middle = toFloat (round ((hi + lo) / 2))
-        result = target - (calculate name middle dict)
+        getCommand name =
+            dict
+                |> Dict.get name
+                |> Maybe.withDefault Human
+
+        lookup name =
+            case Dict.get name dict of
+                Just (Yell n) -> Just n
+                _ -> calculate name dict
+
+        reverseOf command = case command of
+            Divide n1 n2 ->
+                case (lookup n1, lookup n2) of
+                    (Nothing, Just v2) ->
+                        reverseCalculate dict n1 (target * v2)
+                    (Just v1, Nothing) ->
+                        reverseCalculate dict n2 (v1 / target)
+                    _ -> Nothing
+
+            Add n1 n2 ->
+                case (lookup n1, lookup n2) of
+                    (Nothing, Just v2) ->
+                        reverseCalculate dict n1 (target - v2)
+                    (Just v1, Nothing) ->
+                        reverseCalculate dict n2 (target - v1)
+                    _ -> Nothing
+
+            Multiply n1 n2 ->
+                case (lookup n1, lookup n2) of
+                    (Nothing, Just v2) ->
+                        reverseCalculate dict n1 (target / v2)
+                    (Just v1, Nothing) ->
+                        reverseCalculate dict n2 (target / v1)
+                    _ -> Nothing
+
+            Subtract n1 n2 ->
+                case (lookup n1, lookup n2) of
+                    (Nothing, Just v2) ->
+                        reverseCalculate dict n1 (v2 + target)
+                    (Just v1, Nothing) ->
+                        reverseCalculate dict n2 (v1 - target)
+                    _ -> Nothing
+
+            Human -> Just target
+            
+            _ -> Nothing
     in
-    if lo >= hi then
-        middle
-    else
-        if result < 0 then
-            binarySearch dict name target (middle + 1) hi
-        else if result > 0 then
-            binarySearch dict name target lo (middle - 1)
-        else
-            middle
+    getCommand monkeyName
+        |> reverseOf
 
 -------------------------------------------------
 
