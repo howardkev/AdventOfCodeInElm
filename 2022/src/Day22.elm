@@ -21,7 +21,7 @@ import GridExample exposing (MapCell(..))
 import Day2 exposing (score)
 
 todayDescription : PuzzleDescription
-todayDescription = { day = 22, title = "---" }
+todayDescription = { day = 22, title = "Monkey Map" }
 
 sampleInput : String
 sampleInput =
@@ -40,9 +40,13 @@ sampleInput =
 
 10R5L5R10L4R5L5"""
 
+type alias Coordinate = (Int, Int)
+type alias BlockId = Int
+type alias Location = (Coordinate, Direction)
+
 type Command
-    = Right
-    | Left
+    = TurnRight
+    | TurnLeft
     | Move Int
 
 type Direction
@@ -51,17 +55,26 @@ type Direction
     | South
     | West
 
-type Unit
+type Tile
     = Wall
     | Floor
     | Empty
 
+type alias Grid = Dict Coordinate Tile
+
+type alias State = 
+    { grid: Grid
+    , commands: List Command
+    }
+
+part1 : String -> Maybe Int
 part1 input =
     input
         |> parseInput
         |> Maybe.map solve
         |> Maybe.map score
 
+score : Location -> Int
 score ((x,y), direction) =
     1000 * (y + 1) + 4 * (x + 1) + case direction of
         North -> 3
@@ -69,6 +82,7 @@ score ((x,y), direction) =
         South -> 1
         West -> 2
 
+solve : State -> Location
 solve state =
     let
         getWithWrap (x, y) (dx, dy) wrapPoint =
@@ -84,7 +98,7 @@ solve state =
             case Dict.get next state.grid of
                 Just Wall -> (x, y)
                 Just Floor -> next
-                _ -> (x, y) --Debug.todo "bad wrap"
+                _ -> (x, y)
 
         getLeftWrapPos (x, y) =
             let
@@ -151,44 +165,21 @@ solve state =
                 North -> getNextPos pos (0, -1) (getBottomWrapPos pos)
                 South -> getNextPos pos (0, 1) (getTopWrapPos pos)
 
-        turnRight direction =
-            case direction of
-                North -> East
-                East -> South
-                South -> West
-                West -> North
-
-        turnLeft direction =
-            case direction of
-                North -> West
-                East -> North
-                South -> East
-                West -> South
-
         oneStep command (pos, direction) =
             case command of
                 Move n -> (runNTimes n (move direction) pos, direction)
-                Right -> (pos, turnRight direction)
-                Left -> (pos, turnLeft direction)
-
-        startingPoint = state.grid
-            |> Dict.toList
-            |> LE.find (\((_,y), unit) ->
-                    case unit of
-                        Empty -> False
-                        _ -> y == 0
-                )
-            |> Maybe.withDefault ((0, 0), Floor)
-            |> Tuple.first
-            |> D.log "start"
+                TurnRight -> (pos, turnRight direction)
+                TurnLeft -> (pos, turnLeft direction)
     in
-    foldl oneStep (startingPoint, East) state.commands
+    foldl oneStep (getStartingPoint state.grid, East) state.commands
 
+parseInput : String -> Maybe State
 parseInput input =
     input
         |> String.split "\n\n"
         |> parseBoth
 
+parseBoth : List String -> Maybe State
 parseBoth groups =
     case groups of
         [grid_, commands_] ->
@@ -201,8 +192,8 @@ parseBoth groups =
                     |> randl
                     |> filterMap (\c ->
                             case c of
-                                "R" -> Just Right
-                                "L" -> Just Left
+                                "R" -> Just TurnRight
+                                "L" -> Just TurnLeft
                                 _ -> Nothing
                         )
 
@@ -225,6 +216,7 @@ parseBoth groups =
             Just { grid = grid, commands = commands }
         _ -> Nothing
 
+randl : String -> List String
 randl input =
   let 
     regex = Maybe.withDefault Regex.never <|
@@ -233,14 +225,44 @@ randl input =
   in
     List.map .match (found input)
 
+turnRight : Direction -> Direction
+turnRight direction =
+    case direction of
+        North -> East
+        East -> South
+        South -> West
+        West -> North
+
+turnLeft : Direction -> Direction
+turnLeft direction =
+    case direction of
+        North -> West
+        East -> North
+        South -> East
+        West -> South
+
+getStartingPoint : Grid -> Coordinate
+getStartingPoint grid = 
+    grid
+        |> Dict.toList
+        |> LE.find (\((_,y), unit) ->
+                case unit of
+                    Empty -> False
+                    _ -> y == 0
+            )
+        |> Maybe.withDefault ((0, 0), Floor)
+        |> Tuple.first
+
 --------------------------------------------------------------
 
+part2 : String -> Maybe Int
 part2 input =
     input
         |> parseInput
         |> Maybe.map solve2
         |> Maybe.map score
 
+getBlockNumber : Coordinate -> BlockId
 getBlockNumber (x, y) =
     if y < 50 then
         if x < 100 then
@@ -257,6 +279,7 @@ getBlockNumber (x, y) =
     else
         6
 
+solve2 : State -> Location
 solve2 state =
     let
         getWithWrap dir (x, y) (dx, dy) wrapPoint =
@@ -337,37 +360,13 @@ solve2 state =
                 North -> getNextPos direction pos (0, -1) (getBottomWrapPos pos)
                 South -> getNextPos direction pos (0, 1) (getTopWrapPos pos)
 
-        turnRight direction =
-            case direction of
-                North -> East
-                East -> South
-                South -> West
-                West -> North
-
-        turnLeft direction =
-            case direction of
-                North -> West
-                East -> North
-                South -> East
-                West -> South
-
         oneStep command (pos, direction) =
             case command of
                 Move n -> runNTimes n move (pos, direction)
-                Right -> (pos, turnRight direction)
-                Left -> (pos, turnLeft direction)
-
-        startingPoint = state.grid
-            |> Dict.toList
-            |> LE.find (\((_,y), unit) ->
-                    case unit of
-                        Empty -> False
-                        _ -> y == 0
-                )
-            |> Maybe.withDefault ((0, 0), Floor)
-            |> Tuple.first
+                TurnRight -> (pos, turnRight direction)
+                TurnLeft -> (pos, turnLeft direction)
     in
-    foldl oneStep (startingPoint, East) state.commands
+    foldl oneStep (getStartingPoint state.grid, East) state.commands
 
 -------------------------------------------------
 
