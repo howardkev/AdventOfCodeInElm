@@ -117,5 +117,5 @@ mainUpdate msg model sample =
         UsePuzzle ->
             ({ model | input = Maybe.withDefault "Error" model.puzzleInput }, Cmd.none)
         UseExample ->
-            ({ model | input = String.trim sample }, Cmd.none)
+            ({ model | input = sample }, Cmd.none)
         _ -> (model, Cmd.none)
