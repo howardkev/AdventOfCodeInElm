@@ -277,7 +277,6 @@ solve2 state =
         getRightWrapPos (x, y) =
             let
                 block = getBlockNumber (x,y)
-                    |> D.log "block"
             in
             if block == 2 || block == 5 then
                 ((x,y), West)
@@ -290,30 +289,9 @@ solve2 state =
             else -- block 6
                 ((50 + (y - 150), 0), South)
 
-        --_ = D.log "getRight 2-top" (getLeftWrapPos (149, 0))
-        --_ = D.log "getRight 2-top1" (getLeftWrapPos (149, 1))
-        --_ = D.log "getRight 2-bottom" (getLeftWrapPos (149, 49))
-        --_ = D.log "getRight 2-bottom1" (getLeftWrapPos (149, 48))
-
-        --_ = D.log "getRight 3-top" (getLeftWrapPos (99, 50))
-        --_ = D.log "getRight 3-top1" (getLeftWrapPos (99, 51))
-        --_ = D.log "getRight 3-bottom" (getLeftWrapPos (99, 99))
-        --_ = D.log "getRight 3-bottom1" (getLeftWrapPos (99, 98))
-
-        --_ = D.log "getRight 5-top" (getLeftWrapPos (99, 100))
-        --_ = D.log "getRight 5-top1" (getLeftWrapPos (99, 101))
-        --_ = D.log "getRight 5-bottom" (getLeftWrapPos (99, 149))
-        --_ = D.log "getRight 5-bottom1" (getLeftWrapPos (99, 148))
-
-        --_ = D.log "getRight 6-top" (getLeftWrapPos (49, 150))
-        --_ = D.log "getRight 6-top1" (getLeftWrapPos (49, 151))
-        --_ = D.log "getRight 6-bottom" (getLeftWrapPos (49, 199))
-        --_ = D.log "getRight 6-bottom1" (getLeftWrapPos (49, 198))
-
         getLeftWrapPos (x, y) =
             let
                 block = getBlockNumber (x,y)
-                    |> D.log "block"
             in
             if block == 1 || block == 4 then
                 ((x,y), East)
@@ -329,7 +307,6 @@ solve2 state =
         getTopWrapPos (x, y) =
             let
                 block = getBlockNumber (x,y)
-                    |> D.log "block"
             in
             if block == 1 || block == 3 || block == 4 then
                 ((x,y), South)
@@ -343,7 +320,6 @@ solve2 state =
         getBottomWrapPos (x, y) =
             let
                 block = getBlockNumber (x,y)
-                    |> D.log "block"
             in
             if block == 3 || block == 5 || block == 6 then
                 ((x,y), North)
@@ -376,9 +352,6 @@ solve2 state =
                 West -> South
 
         oneStep command (pos, direction) =
-            --let
-            --    _ = D.log "oneStep" (pos,direction)
-            --in
             case command of
                 Move n -> runNTimes n move (pos, direction)
                 Right -> (pos, turnRight direction)
@@ -393,7 +366,6 @@ solve2 state =
                 )
             |> Maybe.withDefault ((0, 0), Floor)
             |> Tuple.first
-            |> D.log "start"
     in
     foldl oneStep (startingPoint, East) state.commands
 
