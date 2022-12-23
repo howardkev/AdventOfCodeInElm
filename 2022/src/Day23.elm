@@ -8,9 +8,7 @@ import Regex
 import Dict exposing (Dict)
 import List exposing (map, filterMap, foldl, take, filter, concat, length, range, sort, maximum, sortWith, head, tail, any, all, reverse)
 import Parser exposing (Parser, Trailing(..))
-import Html exposing (a)
 import Debug as D
-import Day20 exposing (State)
 
 todayDescription : PuzzleDescription
 todayDescription = { day = 23, title = "Unstable Diffusion" }
@@ -47,15 +45,15 @@ type alias State =
     , moves : List Direction 
     }
 
---part1 : String -> Int
+part1 : String -> Int
 part1 input =
     input
         |> parseInput
         |> toInitialState
         |> runNTimes 10 oneRound
-        |> .grid
-        |> printGrid tileToChar
-        --|> score
+        --|> .grid
+        --|> printGrid tileToChar
+        |> score
 
 parseInput : String -> Grid
 parseInput input =
