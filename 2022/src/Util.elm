@@ -81,3 +81,20 @@ runNTimes : Int -> (c -> c) -> c -> c
 runNTimes n f state =
     List.foldl (\_ acc -> f acc) state (range 1 n)
     
+printGrid tileToChar grid =
+    let
+        asList = Dict.toList grid
+        bottom = foldl (\((_,y),_) b -> max y b) 0 asList + 1
+        top = foldl (\((_,y),_) b -> min y b) 1000000 asList - 1
+        right = foldl (\((x,_),_) b -> max x b) 0 asList + 1
+        left = foldl (\((x,_),_) b -> min x b) 1000000 asList - 1
+        points = pointGrid left top (right - left + 1) (bottom - top + 1)
+    in
+    displayBoard tileToChar points grid (right - left + 1)
+
+displayBoard tileToChar points grid w =
+    foldl (\v a -> (tileToChar v grid) :: a) [] points
+        |> List.reverse
+        |> LE.groupsOf w
+        |> map String.fromList
+        |> String.join "\n"
