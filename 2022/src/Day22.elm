@@ -8,7 +8,6 @@ import Regex
 import Dict exposing (Dict)
 import List exposing (map, filterMap, foldl, take, filter, concat, length, range, sort, maximum, sortWith, head, tail, any, all, reverse)
 import Parser exposing (Parser, Trailing(..))
-import Html exposing (a)
 import Debug as D
 
 todayDescription : PuzzleDescription
@@ -146,36 +145,12 @@ blockPositionsForExample size =
         |> Dict.fromList
 
 blockConnectionsForExample1 =
-    [ (1, [ { dir = Left, block = 1, newDir = Left }
-          , { dir = Up, block = 5, newDir = Up }
-          , { dir = Right, block = 1, newDir = Right }
-          , { dir = Down, block = 3, newDir = Down }
-          ])
-    , (2, [ { dir = Left, block = 4, newDir = Left }
-          , { dir = Up, block = 2, newDir = Up }
-          , { dir = Right, block = 3, newDir = Right }
-          , { dir = Down, block = 2, newDir = Down }
-          ])
-    , (3, [ { dir = Left, block = 2, newDir = Left }
-          , { dir = Up, block = 3, newDir = Up }
-          , { dir = Right, block = 4, newDir = Right }
-          , { dir = Down, block = 3, newDir = Down }
-          ])
-    , (4, [ { dir = Left, block = 3, newDir = Left }
-          , { dir = Up, block = 1, newDir = Up }
-          , { dir = Right, block = 2, newDir = Right }
-          , { dir = Down, block = 5, newDir = Down }
-          ])
-    , (5, [ { dir = Left, block = 3, newDir = Left }
-          , { dir = Up, block = 4, newDir = Up }
-          , { dir = Right, block = 6, newDir = Right }
-          , { dir = Down, block = 2, newDir = Down }
-          ])
-    , (6, [ { dir = Left, block = 5, newDir = Left }
-          , { dir = Up, block = 6, newDir = Up }
-          , { dir = Right, block = 5, newDir = Right }
-          , { dir = Down, block = 6, newDir = Down }
-          ])
+    [ (1, [ (Left,1,Left), (Up,5,Up), (Right,1,Right), (Down,3,Down) ])
+    , (2, [ (Left,4,Left), (Up,2,Up), (Right,3,Right), (Down,2,Down) ])
+    , (3, [ (Left,2,Left), (Up,3,Up), (Right,4,Right), (Down,3,Down) ])
+    , (4, [ (Left,3,Left), (Up,1,Up), (Right,2,Right), (Down,5,Down) ])
+    , (5, [ (Left,3,Left), (Up,4,Up), (Right,6,Right), (Down,2,Down) ])
+    , (6, [ (Left,5,Left), (Up,6,Up), (Right,5,Right), (Down,6,Down) ])
     ]
         |> Dict.fromList
 
@@ -210,12 +185,12 @@ solve state =
                                     Up -> (x, top + blockSize - 1)
                             )
 
-                getPoint { block, newDir } = 
+                getPoint (_, block, newDir) = 
                     Maybe.map2 Tuple.pair (getCoordinate pos block newDir) (Just newDir)
 
                 currentBlock = getBlockNumber blockPositions blockSize pos
                 wrapPoint = Dict.get currentBlock blockConnections
-                    |> Maybe.andThen (LE.find (\{dir} -> dir == direction))
+                    |> Maybe.andThen (LE.find (\(dir,_,_) -> dir == direction))
                     |> Maybe.andThen getPoint
             in
             case wrapPoint of
