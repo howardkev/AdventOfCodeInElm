@@ -47,43 +47,27 @@ type alias State =
     , moves : List Direction 
     }
 
-part1 : String -> Int
+--part1 : String -> Int
 part1 input =
     input
         |> parseInput
         |> toInitialState
         |> runNTimes 10 oneRound
-        --|> .grid
-        --|> printGrid tileToChar
-        |> score
+        |> .grid
+        |> printGrid tileToChar
+        --|> score
 
 parseInput : String -> Grid
 parseInput input =
     input
         |> String.split "\n"
-        |> map String.toList
-        |> toGrid
+        |> parseGrid charToTile
 
-toGrid : List (List Char) -> Grid
-toGrid lines =
-    let
-        toTile a = 
-            case a of
-                '#' -> Just Elf
-                _ -> Nothing
-
-        maybeFilter (pos, unit) dest =
-            case unit of
-                Just n -> (pos, n) :: dest
-                Nothing -> dest
-    in
-    lines
-        |> List.indexedMap (\y line -> 
-            List.indexedMap (\x value -> 
-                ((x, y), toTile value)) line)
-        |> List.concat
-        |> List.foldr maybeFilter []
-        |> Dict.fromList
+charToTile : Char -> Maybe Tile
+charToTile c = 
+    case c of
+        '#' -> Just Elf
+        _ -> Nothing
 
 tileToChar : Coordinate -> Grid -> Char
 tileToChar v grid =
@@ -93,27 +77,35 @@ tileToChar v grid =
 
 toInitialState : Grid -> State
 toInitialState grid =
-    { grid = grid, moves = [North, South, West, East]
-    , round = 0, numberMoved = 1 }
+    { grid = grid
+    , moves = [North, South, West, East]
+    , round = 0
+    , numberMoved = 1 
+    }
 
 oneRound : State -> State
 oneRound state =
     let
-        count (x, y) positions =
+        countElfs deltas (x, y) =
             LE.count (\(dx, dy) -> 
                     case Dict.get (x + dx, y + dy) state.grid of
                         Just Elf -> True
                         _ -> False
-                ) positions
+                ) deltas
+
+        countNorth = countElfs [(-1,-1), (0,-1), (1,-1)]
+        countSouth = countElfs [(-1,1), (0,1), (1,1)]
+        countEast = countElfs [(1,-1), (1,0), (1,1)]
+        countWest = countElfs [(-1,-1), (-1,0), (-1,1)]
 
         (firstPass, keep) = Dict.foldl (\((x, y) as pos) v (dict, kp) ->
             case v of
                 Elf ->
                     let
-                        north = count pos [(-1,-1), (0,-1), (1,-1)]
-                        south = count pos [(-1,1), (0,1), (1,1)]
-                        east = count pos [(1,-1), (1,0), (1,1)]
-                        west = count pos [(-1,-1), (-1,0), (-1,1)]
+                        north = countNorth pos
+                        south = countSouth pos
+                        east = countEast pos
+                        west = countWest pos
                         total = north + south + east + west
 
                         results = filterMap (\move ->
@@ -129,15 +121,18 @@ oneRound state =
                         (dict, Dict.insert pos Elf kp)
                     else
                         case results of
-                            Just pt -> (Dict.insert pos pt dict, kp)
-                            _ -> (dict, Dict.insert pos Elf kp)
+                            Just pt -> 
+                                (Dict.insert pos pt dict, kp)
+                            Nothing -> 
+                                (dict, Dict.insert pos Elf kp)
                 _ -> (dict, kp)
             ) (Dict.empty, Dict.empty) state.grid
 
-        goodMoves = Dict.values firstPass
-            |> LE.frequencies
-            |> filter (\(_, cnt) -> cnt == 1)
-            |> map Tuple.first
+        goodMoves = 
+            Dict.values firstPass
+                |> LE.frequencies
+                |> filter (\(_, count) -> count == 1)
+                |> map Tuple.first
 
         secondRound = 
             firstPass
@@ -148,9 +143,10 @@ oneRound state =
                             Dict.insert pos Elf dict
                     ) Dict.empty 
 
-        newMoves = case LE.uncons state.moves of
-            Just (h, tl) -> tl ++ [h]
-            _ -> state.moves
+        newMoves = 
+            case LE.uncons state.moves of
+                Just (h, tl) -> tl ++ [h]
+                _ -> state.moves
     in
     { state 
         | grid = Dict.union keep secondRound
