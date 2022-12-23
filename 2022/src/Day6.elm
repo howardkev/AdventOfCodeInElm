@@ -13,7 +13,7 @@ todayDescription = { day = 6, title = "Tuning Trouble" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 mjqjpqmgbljsphdztnvjfqwrcgsmlb
 """
 
@@ -46,7 +46,7 @@ part2 input =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

@@ -19,7 +19,7 @@ todayDescription = { day = 5, title = "Supply Stacks" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 move 1 from 2 to 1
 move 3 from 1 to 3
 move 2 from 2 to 1
@@ -131,7 +131,7 @@ part2 input =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

@@ -18,7 +18,7 @@ todayDescription = { day = 18, title = "Boiling Boulders" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 2,2,2
 1,2,2
 3,2,2
@@ -144,7 +144,7 @@ removeOne pos remaining cubes =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

@@ -16,7 +16,7 @@ todayDescription = { day = 3, title = "Rucksack Reorganization" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 vJrwpWtwJgWrhcsFMMfFFhFp
 jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
 PmmdzqPrVvPwwTWBwg
@@ -98,7 +98,7 @@ combineSets xs =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

@@ -23,7 +23,7 @@ todayDescription = { day = 20, title = "Grove Positioning System" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 1
 2
 -3
@@ -136,7 +136,7 @@ solve2 state =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

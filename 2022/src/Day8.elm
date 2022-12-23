@@ -12,7 +12,7 @@ todayDescription = { day = 8, title = "Treetop Tree House" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 30373
 25512
 65332
@@ -128,7 +128,7 @@ takeUntil predicate =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

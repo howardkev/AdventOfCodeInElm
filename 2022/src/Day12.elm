@@ -18,7 +18,7 @@ todayDescription = { day = 12, title = "Hill Climbing Algorithm" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 Sabqponm
 abcryxxl
 accszExk
@@ -142,7 +142,7 @@ part2 input =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

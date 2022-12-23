@@ -20,7 +20,7 @@ todayDescription = { day = 15, title = "Beacon Exclusion Zone" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 Sensor at x=2, y=18: closest beacon is at x=-2, y=15
 Sensor at x=9, y=16: closest beacon is at x=10, y=16
 Sensor at x=13, y=2: closest beacon is at x=15, y=3
@@ -169,7 +169,7 @@ score2 (x, y) =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

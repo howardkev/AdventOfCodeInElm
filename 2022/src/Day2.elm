@@ -15,7 +15,7 @@ todayDescription = { day = 2, title = "Rock Paper Scissors" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 A Y
 B X
 C Z
@@ -140,7 +140,7 @@ whatShouldPlay hand desiredResult =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

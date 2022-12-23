@@ -17,7 +17,7 @@ todayDescription = { day = 9, title = "Rope Bridge" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 R 5
 U 8
 L 8
@@ -157,7 +157,7 @@ solveNextInChain visited =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

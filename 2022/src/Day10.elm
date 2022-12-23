@@ -17,7 +17,7 @@ todayDescription = { day = 10, title = "Cathode-Ray Tube" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 addx 15
 addx -11
 addx 6
@@ -253,7 +253,7 @@ getCrt xs =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

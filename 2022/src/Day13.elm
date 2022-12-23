@@ -18,7 +18,7 @@ todayDescription = { day = 13, title = "Distress Signal" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 [1,1,3,1,1]
 [1,1,5,1,1]
 
@@ -229,7 +229,7 @@ score2 sortedPackets =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

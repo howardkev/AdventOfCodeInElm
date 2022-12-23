@@ -21,7 +21,7 @@ todayDescription = { day = 17, title = "Pyroclastic Flow" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 >>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>
 """
 
@@ -318,7 +318,7 @@ asString (d,r) =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

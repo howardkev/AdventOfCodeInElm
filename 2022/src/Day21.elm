@@ -22,7 +22,7 @@ todayDescription = { day = 21, title = "Monkey Math" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 root: pppw + sjmn
 dbpl: 5
 cczh: sllz + lgvd
@@ -202,7 +202,7 @@ reverseCalculate dict monkeyName target =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

@@ -17,7 +17,7 @@ todayDescription = { day = 23, title = "Unstable Diffusion" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 ....#..
 ..###.#
 #...#.#
@@ -196,7 +196,7 @@ runTillFinished state =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

@@ -19,7 +19,7 @@ todayDescription = { day = 7, title = "No Space Left On Device" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 $ cd /
 $ ls
 dir a
@@ -160,7 +160,7 @@ solve2 terminal =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

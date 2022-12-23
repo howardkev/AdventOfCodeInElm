@@ -18,7 +18,7 @@ todayDescription = { day = 16, title = "Proboscidea Volcanium" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 Valve AA has flow rate=0; tunnels lead to valves DD, II, BB
 Valve BB has flow rate=13; tunnels lead to valves CC, AA
 Valve CC has flow rate=2; tunnels lead to valves DD, BB
@@ -269,7 +269,7 @@ getAllPairs list1 list2 =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )

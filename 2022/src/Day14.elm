@@ -18,7 +18,7 @@ todayDescription = { day = 14, title = "Regolith Reservoir" }
 
 sampleInput : String
 sampleInput =
-    """
+    String.trim """
 498,4 -> 498,6 -> 496,6
 503,4 -> 502,4 -> 502,9 -> 494,9
 """
@@ -198,7 +198,7 @@ play2 state =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { input = String.trim sampleInput
+    ( { input = sampleInput
         , puzzleInput = Nothing
         , result = Nothing
         , description = todayDescription }, Cmd.none )
