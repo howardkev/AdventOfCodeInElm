@@ -40,22 +40,16 @@ type Command
     | TurnLeft
     | Move Int
 
-type Direction
-    = North
-    | East
-    | South
-    | West
-
 type Tile
     = Wall
     | Floor
     | Empty
 
-type Sides
+type Direction
     = Left
-    | Top
+    | Up
     | Right
-    | Bottom
+    | Down
 
 type alias Grid = Dict Coordinate Tile
 
@@ -74,10 +68,10 @@ part1 input =
 score : Location -> Int
 score ((x,y), direction) =
     1000 * (y + 1) + 4 * (x + 1) + case direction of
-        North -> 3
-        East -> 0
-        South -> 1
-        West -> 2
+        Right -> 0
+        Down -> 1
+        Left -> 2
+        Up -> 3
 
 parseInput : String -> Maybe State
 parseInput input =
@@ -131,71 +125,145 @@ randl input =
   in
     List.map .match (found input)
 
+blockPositionsForPuzzle size =
+    [ (1, { left = size, top = 0 } )
+    , (2, { left = size * 2, top = 0 } )
+    , (3, { left = size, top = size } )
+    , (4, { left = 0, top = size * 2 } )
+    , (5, { left = size, top = size * 2 } )
+    , (6, { left = 0, top = size * 3 } )
+    ]
+        |> Dict.fromList
+
+blockPositionsForExample size =
+    [ (1, { left = size * 2, top = 0 } )
+    , (2, { left = 0, top = size } )
+    , (3, { left = size, top = size } )
+    , (4, { left = size * 2, top = size } )
+    , (5, { left = size * 2, top = size * 2 } )
+    , (6, { left = size * 2, top = size * 2 } )
+    ]
+        |> Dict.fromList
+
+blockConnectionsForExample1 =
+    [ (1, [ { dir = Left, block = 1, newDir = Left }
+          , { dir = Up, block = 5, newDir = Up }
+          , { dir = Right, block = 1, newDir = Right }
+          , { dir = Down, block = 3, newDir = Down }
+          ])
+    , (2, [ { dir = Left, block = 4, newDir = Left }
+          , { dir = Up, block = 2, newDir = Up }
+          , { dir = Right, block = 3, newDir = Right }
+          , { dir = Down, block = 2, newDir = Down }
+          ])
+    , (3, [ { dir = Left, block = 2, newDir = Left }
+          , { dir = Up, block = 3, newDir = Up }
+          , { dir = Right, block = 4, newDir = Right }
+          , { dir = Down, block = 3, newDir = Down }
+          ])
+    , (4, [ { dir = Left, block = 3, newDir = Left }
+          , { dir = Up, block = 1, newDir = Up }
+          , { dir = Right, block = 2, newDir = Right }
+          , { dir = Down, block = 5, newDir = Down }
+          ])
+    , (5, [ { dir = Left, block = 3, newDir = Left }
+          , { dir = Up, block = 4, newDir = Up }
+          , { dir = Right, block = 6, newDir = Right }
+          , { dir = Down, block = 2, newDir = Down }
+          ])
+    , (6, [ { dir = Left, block = 5, newDir = Left }
+          , { dir = Up, block = 6, newDir = Up }
+          , { dir = Right, block = 5, newDir = Right }
+          , { dir = Down, block = 6, newDir = Down }
+          ])
+    ]
+        |> Dict.fromList
+
+blockConnectionsForPuzzle1 = blockConnectionsForExample1
+
 solve : State -> Location
 solve state =
     let
-        maxX = getMaxX state.grid
-        maxY = getMaxY state.grid
+        blockSize = getBlockSize state.grid
 
-        stepToValidTile (x, y) (dx, dy) =
-            case Dict.get (x, y) state.grid of
-                Just Wall -> (x, y)
-                Just Floor -> (x, y)
-                _ -> stepToValidTile (x + dx, y + dy) (dx, dy)
+        blockPositions = 
+            if blockSize == 4 then
+                blockPositionsForExample blockSize
+            else
+                blockPositionsForPuzzle blockSize
 
-        getWrapPoint (x, y) (dx, dy) wrapSide =
+        blockConnections = 
+            if blockSize == 4 then
+                blockConnectionsForExample1
+            else
+                blockConnectionsForPuzzle1
+
+        getWrapPoint pos direction =
             let
-                startPoint = 
-                    case wrapSide of
-                        Left -> (0, y)
-                        Top -> (x, 0)
-                        Right -> (maxX, y)
-                        Bottom -> (x, maxY)
-            in
-            stepToValidTile startPoint (dx, dy)
+                getCoordinate (x, y) block newDir =
+                    Dict.get block blockPositions
+                        |> Maybe.map (\{left, top} ->
+                                case newDir of
+                                    Right -> (left, y)
+                                    Left -> (left + blockSize - 1, y)
+                                    Down -> (x, top)
+                                    Up -> (x, top + blockSize - 1)
+                            )
 
-        getNextPos (x, y) (dx, dy) wrapSide =
+                getPoint { block, newDir } = 
+                    Maybe.map2 Tuple.pair (getCoordinate pos block newDir) (Just newDir)
+
+                currentBlock = getBlockNumber blockPositions blockSize pos
+                wrapPoint = Dict.get currentBlock blockConnections
+                    |> Maybe.andThen (LE.find (\{dir} -> dir == direction))
+                    |> Maybe.andThen getPoint
+            in
+            case wrapPoint of
+                Just location -> location
+                _ -> (pos, direction)
+
+        getNextPos (x, y) (dx, dy) dir =
             case Dict.get (x + dx, y + dy) state.grid of
-                Just Wall -> (x, y)
-                Just Floor -> (x + dx, y + dy)
+                Just Wall -> ((x, y), dir)
+                Just Floor -> ((x + dx, y + dy), dir)
                 _ ->
                     let
-                        potentialPoint = getWrapPoint (x, y) (dx, dy) wrapSide
+                        (nextPoint, nextDir) = getWrapPoint (x, y) dir
                     in
-                    case Dict.get potentialPoint state.grid of
-                        Just Wall -> (x, y)
-                        _ -> potentialPoint
+                    case Dict.get nextPoint state.grid of
+                        Just Wall -> ((x, y), dir)
+                        _ -> (nextPoint, nextDir)
 
-        move direction pos =
+        oneStep (pos, direction) =
             case direction of
-                East -> getNextPos pos (1, 0) Left
-                West -> getNextPos pos (-1, 0) Right
-                North -> getNextPos pos (0, -1) Bottom
-                South -> getNextPos pos (0, 1) Top
+                Right -> getNextPos pos (1, 0) Right
+                Left -> getNextPos pos (-1, 0) Left
+                Up -> getNextPos pos (0, -1) Up
+                Down -> getNextPos pos (0, 1) Down
 
-        oneStep command (pos, direction) =
+        oneCommand command (pos, direction) =
             case command of
-                Move n -> (runNTimes n (move direction) pos, direction)
+                Move n -> runNTimes n oneStep (pos, direction)
                 TurnRight -> (pos, turnRight direction)
                 TurnLeft -> (pos, turnLeft direction)
     in
-    foldl oneStep (getStartingPoint state.grid, East) state.commands
+    foldl oneCommand (getStartingPoint state.grid, Right) state.commands
 
 turnRight : Direction -> Direction
 turnRight direction =
     case direction of
-        North -> East
-        East -> South
-        South -> West
-        West -> North
+        Up -> Right
+        Right -> Down
+        Down -> Left
+        Left -> Up
 
 turnLeft : Direction -> Direction
 turnLeft direction =
     case direction of
-        North -> West
-        East -> North
-        South -> East
-        West -> South
+        Up -> Left
+        Right -> Up
+        Down -> Right
+        Left -> Down
 
 getStartingPoint : Grid -> Coordinate
 getStartingPoint grid = 
@@ -219,120 +287,158 @@ getMaxY grid =
     Dict.keys grid 
         |> foldl (\(_,y) acc -> max acc y) 0
 
+getBlockNumber positions size (x, y) =
+    positions
+        |> Dict.toList
+        |> LE.find (\(_, {left, top}) -> 
+                (x >= left) && 
+                (y >= top) && 
+                (x < (left + size)) &&
+                (y < (top + size))
+            )
+        |> Maybe.map Tuple.first
+        |> Maybe.withDefault 1
+
+getBlockSize grid = 
+    let
+        maxX = getMaxX grid
+        maxY = getMaxY grid
+    in
+    if maxX > maxY then 
+        (maxX + 1) // 4 
+    else
+        (maxX + 1) // 3
+
 --------------------------------------------------------------
 
-part2 : String -> Maybe Int
+--part2 : String -> Maybe Int
 part2 input =
     input
         |> parseInput
-        |> Maybe.map solve2
-        |> Maybe.map score
+        --|> Maybe.map solve2
+        --|> Maybe.map score
 
-getBlockNumber : Coordinate -> BlockId
-getBlockNumber (x, y) =
-    if y < 50 then
-        if x < 100 then
-            1
-        else
-            2
-    else if y < 100 then
-        3
-    else if y < 150 then
-        if x < 50 then
-            4
-        else
-            5
-    else
-        6
+-- blockConnectionsForExample2 =
+--     [ (1, [(West, Top, 3), (North, Top, 2), (East, Right, 6), (South, Top, 4)])
+--     , (2, [(West, Bottom, 6), (North, Top, 1), (East, Left, 3), (South, Bottom, 5)])
+--     , (3, [(West, Right, 2), (North, Left, 1), (East, Left, 4), (South, Left, 5)])
+--     , (4, [(West, Right, 3), (North, Bottom, 1), (East, Top, 6), (South, Top, 5)])
+--     , (5, [(West, Bottom, 3), (North, Bottom, 4), (East, Left, 6), (South, Bottom, 2)])
+--     , (6, [(West, Right, 5), (North, Right, 4), (East, Right, 1), (South, Left, 2)])
+--     ]
+--         |> Dict.fromList
 
-solve2 : State -> Location
-solve2 state =
-    let
-        getWithWrap dir (x, y) (dx, dy) wrapPoint =
-            case Dict.get (x + dx, y + dy) state.grid of
-                Just Wall -> ((x + dx, y + dy), dir)
-                Just Floor -> ((x + dx, y + dy), dir)
-                _ -> wrapPoint
+-- blockConnectionsForPuzzle2 =
+--     [ (1, [(West, Top, 3), (North, Top, 2), (East, Right, 6), (South, Top, 4)])
+--     , (2, [(West, Bottom, 6), (North, Top, 1), (East, Left, 3), (South, Bottom, 5)])
+--     , (3, [(West, Right, 2), (North, Left, 1), (East, Left, 4), (South, Left, 5)])
+--     , (4, [(West, Right, 3), (North, Bottom, 1), (East, Top, 6), (South, Top, 5)])
+--     , (5, [(West, Bottom, 3), (North, Bottom, 4), (East, Left, 6), (South, Bottom, 2)])
+--     , (6, [(West, Right, 5), (North, Right, 4), (East, Right, 1), (South, Left, 2)])
+--     ]
+--         |> Dict.fromList
 
-        getNextPos dir (x, y) (dx, dy) wrapPoint =
-            let
-                (next, nextDir) = getWithWrap dir (x, y) (dx, dy) wrapPoint
-            in
-            case Dict.get next state.grid of
-                Just Wall -> ((x, y), dir)
-                Just Floor -> (next, nextDir)
-                _ -> ((x, y), dir) --Debug.todo "bad wrap"
+-- solve2 : State -> Location
+-- solve2 state =
+--     let
+--         blockSize = getBlockSize state.grid
+--         blockPositions = 
+--             if blockSize == 4 then
+--                 blockPositionsForExample blockSize
+--             else
+--                 blockPositionsForPuzzle blockSize
 
-        getRightWrapPos (x, y) =
-            let
-                block = getBlockNumber (x,y)
-            in
-            if block == 2 || block == 5 then
-                ((x,y), West)
-            else if block == 1 then
-                ((0, 149 - y), East)
-            else if block == 3 then
-                ((y - 50, 100), South)
-            else if block == 4 then
-                ((50, 49 - (y - 100)), East)
-            else -- block 6
-                ((50 + (y - 150), 0), South)
+--         blockConnections = 
+--             if blockSize == 4 then
+--                 blockConnectionsForExample2
+--             else
+--                 blockConnectionsForPuzzle2
 
-        getLeftWrapPos (x, y) =
-            let
-                block = getBlockNumber (x,y)
-            in
-            if block == 1 || block == 4 then
-                ((x,y), East)
-            else if block == 2 then
-                ((99, 149 - y), West)
-            else if block == 3 then
-                ((100 + (y - 50), 49), North)
-            else if block == 5 then
-                ((149, 49 - (y - 100)), West)
-            else -- block 6
-                ((50 + (y - 150), 149), North)
+--         getWithWrap dir (x, y) (dx, dy) wrapPoint =
+--             case Dict.get (x + dx, y + dy) state.grid of
+--                 Just Wall -> ((x + dx, y + dy), dir)
+--                 Just Floor -> ((x + dx, y + dy), dir)
+--                 _ -> wrapPoint
 
-        getTopWrapPos (x, y) =
-            let
-                block = getBlockNumber (x,y)
-            in
-            if block == 1 || block == 3 || block == 4 then
-                ((x,y), South)
-            else if block == 2 then
-                ((99, 50 + (x - 100)), West)
-            else if block == 5 then
-                ((49, 150 + (x - 50)), West)
-            else -- block 6
-                ((100 + x, 0), South)
+--         getNextPos dir (x, y) (dx, dy) wrapPoint =
+--             let
+--                 (next, nextDir) = getWithWrap dir (x, y) (dx, dy) wrapPoint
+--             in
+--             case Dict.get next state.grid of
+--                 Just Wall -> ((x, y), dir)
+--                 Just Floor -> (next, nextDir)
+--                 _ -> ((x, y), dir) --Debug.todo "bad wrap"
 
-        getBottomWrapPos (x, y) =
-            let
-                block = getBlockNumber (x,y)
-            in
-            if block == 3 || block == 5 || block == 6 then
-                ((x,y), North)
-            else if block == 1 then
-                ((0, 150 + (x - 50)), East)
-            else if block == 2 then
-                (((x - 100), 199), North)
-            else -- block 4
-                ((50, 50 + x), East)
+--         getRightWrapPos (x, y) =
+--             let
+--                 block = getBlockNumber blockPositions blockSize (x,y)
+--             in
+--             if block == 2 || block == 5 then
+--                 ((x,y), West)
+--             else if block == 1 then
+--                 ((0, 149 - y), East)
+--             else if block == 3 then
+--                 ((y - 50, 100), South)
+--             else if block == 4 then
+--                 ((50, 49 - (y - 100)), East)
+--             else -- block 6
+--                 ((50 + (y - 150), 0), South)
 
-        move (pos, direction) =
-            case direction of
-                East -> getNextPos direction pos (1, 0) (getLeftWrapPos pos)
-                West -> getNextPos direction pos (-1, 0) (getRightWrapPos pos)
-                North -> getNextPos direction pos (0, -1) (getBottomWrapPos pos)
-                South -> getNextPos direction pos (0, 1) (getTopWrapPos pos)
+--         getLeftWrapPos (x, y) =
+--             let
+--                 block = getBlockNumber blockPositions blockSize (x,y)
+--             in
+--             if block == 1 || block == 4 then
+--                 ((x,y), East)
+--             else if block == 2 then
+--                 ((99, 149 - y), West)
+--             else if block == 3 then
+--                 ((100 + (y - 50), 49), North)
+--             else if block == 5 then
+--                 ((149, 49 - (y - 100)), West)
+--             else -- block 6
+--                 ((50 + (y - 150), 149), North)
 
-        oneStep command (pos, direction) =
-            case command of
-                Move n -> runNTimes n move (pos, direction)
-                TurnRight -> (pos, turnRight direction)
-                TurnLeft -> (pos, turnLeft direction)
-    in
-    foldl oneStep (getStartingPoint state.grid, East) state.commands
+--         getTopWrapPos (x, y) =
+--             let
+--                 block = getBlockNumber blockPositions blockSize (x,y)
+--             in
+--             if block == 1 || block == 3 || block == 4 then
+--                 ((x,y), South)
+--             else if block == 2 then
+--                 ((99, 50 + (x - 100)), West)
+--             else if block == 5 then
+--                 ((49, 150 + (x - 50)), West)
+--             else -- block 6
+--                 ((100 + x, 0), South)
+
+--         getBottomWrapPos (x, y) =
+--             let
+--                 block = getBlockNumber blockPositions blockSize (x,y)
+--             in
+--             if block == 3 || block == 5 || block == 6 then
+--                 ((x,y), North)
+--             else if block == 1 then
+--                 ((0, 150 + (x - 50)), East)
+--             else if block == 2 then
+--                 (((x - 100), 199), North)
+--             else -- block 4
+--                 ((50, 50 + x), East)
+
+--         move (pos, direction) =
+--             case direction of
+--                 East -> getNextPos direction pos (1, 0) (getLeftWrapPos pos)
+--                 West -> getNextPos direction pos (-1, 0) (getRightWrapPos pos)
+--                 North -> getNextPos direction pos (0, -1) (getBottomWrapPos pos)
+--                 South -> getNextPos direction pos (0, 1) (getTopWrapPos pos)
+
+--         oneStep command (pos, direction) =
+--             case command of
+--                 Move n -> runNTimes n move (pos, direction)
+--                 TurnRight -> (pos, turnRight direction)
+--                 TurnLeft -> (pos, turnLeft direction)
+--     in
+--     foldl oneStep (getStartingPoint state.grid, East) state.commands
 
 -------------------------------------------------
 
