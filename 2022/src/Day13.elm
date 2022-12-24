@@ -11,7 +11,6 @@ import List exposing (map, filterMap, foldl, take, filter, concat, length, range
 import String exposing (lines, split, toList)
 import Dict exposing (empty)
 import Fifo exposing (Fifo)
-import GridExample exposing (Board)
 
 todayDescription : PuzzleDescription
 todayDescription = { day = 13, title = "Distress Signal" }

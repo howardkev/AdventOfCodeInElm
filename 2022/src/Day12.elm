@@ -11,7 +11,6 @@ import List exposing (map, filterMap, foldl, take, filter, concat, length, range
 import String exposing (lines, split, toList)
 import Dict exposing (empty)
 import Fifo exposing (Fifo)
-import GridExample exposing (Board)
 
 todayDescription : PuzzleDescription
 todayDescription = { day = 12, title = "Hill Climbing Algorithm" }
@@ -32,6 +31,12 @@ type alias Height = Int
 type alias Distance = Int
 
 type alias Board = (Coordinate, Coordinate, Dict Coordinate Height)
+
+type alias Grid a =
+     { width : Int
+     , height : Int
+     , units : Dict (Int, Int) a
+     }
 
 type alias State = 
     { start : Coordinate

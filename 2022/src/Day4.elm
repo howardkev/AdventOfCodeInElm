@@ -32,9 +32,16 @@ parseInput : String -> List (List Int)
 parseInput input =
     input
         |> split "\n"
-        |> map ints
-        --|> map (String.split " ")
-        --|> map String.toList
+        |> map positiveInts
+
+positiveInts : String -> List Int
+positiveInts input =
+  let 
+    regex = Maybe.withDefault Regex.never <|
+      Regex.fromString "[0-9]+"
+    found = Regex.find regex
+  in
+    List.filterMap (.match >> String.toInt) (found input)
 
 toRanges : List Int -> (Set Int, Set Int)
 toRanges pair =

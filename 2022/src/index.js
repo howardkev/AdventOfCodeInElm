@@ -1,8 +1,8 @@
 import './main.css';
-import { Elm } from './Day23.elm';
+import { Elm } from './Day25.elm';
 import * as serviceWorker from './serviceWorker';
 
-Elm.Day23.init({
+Elm.Day25.init({
   node: document.getElementById('root')
 });
 
