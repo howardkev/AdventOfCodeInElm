@@ -42,16 +42,34 @@ type Direction
     | Left
     | Right
 
+type alias BfsState = (Coordinate, Int, Int)
+
+type alias State =
+    { end: Coordinate
+    , maxX: Int
+    , maxY: Int
+    , queue: Fifo BfsState
+    , grids: Dict Int Grid
+    , cache: Set BfsState
+    }
+
+part1 : String -> Int
 part1 input =
     input
         |> parseInput
+        --|> showGrid 2
         |> solve findBestPath
-        --|> combineExpedition
-        --|> printGrid tileToChar
 
-combineExpedition state =
-    Dict.union (Dict.singleton state.position Expedition) state.grid
+showGrid : Int -> Grid -> String
+showGrid n grid =
+    let
+        maxX = getMaxX grid
+        maxY = getMaxY grid
+        result = runNTimes n (getNextGrid maxX maxY) grid
+    in
+    printGrid tileToChar result
 
+parseInput : String -> Grid
 parseInput input =
     input
         |> String.split "\n"
@@ -91,6 +109,7 @@ getMaxY grid =
     Dict.keys grid 
         |> foldl (\(_,y) acc -> max acc y) 0
 
+solve : (State -> Int) -> Grid -> Int
 solve fn grid =
     let
         queue = Fifo.fromList [((1, 0), 0, 0)]
@@ -112,6 +131,7 @@ solve fn grid =
     in
     fn state
 
+findBestPath : State -> Int
 findBestPath state = 
     case Fifo.remove state.queue of
         (Nothing, _) -> 0
@@ -124,6 +144,7 @@ findBestPath state =
                 in
                 findBestPath nextState
 
+calculateOnePos : BfsState -> Fifo BfsState -> State -> State
 calculateOnePos top remaining state =
     let
         (_, minutes, quest) = top
@@ -145,6 +166,7 @@ calculateOnePos top remaining state =
         , cache = newCache
     }
 
+getNextGrid : Int -> Int -> Grid -> Grid
 getNextGrid maxX maxY grid =
     let
         isWall (x, y) = case Dict.get (x, y) grid of
@@ -202,6 +224,7 @@ getNextGrid maxX maxY grid =
     in
     blizzardMoves
 
+oneRound : BfsState -> State -> List Coordinate
 oneRound (expeditionPos, minutes, _) state =
     let
         grid = 
@@ -230,11 +253,13 @@ oneRound (expeditionPos, minutes, _) state =
 
 --------------------------------------------------------------
 
+part2 : String -> Int
 part2 input =
     input
         |> parseInput
         |> solve findBestPath2
 
+findBestPath2 : State -> Int
 findBestPath2 state = 
     case Fifo.remove state.queue of
         (Nothing, _) -> 0
