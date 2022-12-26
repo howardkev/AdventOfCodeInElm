@@ -37,10 +37,8 @@ part1 : String -> String
 part1 input =
     input
         |> parseInput
-        |> map toDecimal
-        |> List.sum
-        |> toSnafuDecimal
-        |> toSnafu
+        |> foldl sumSnafu ['0']
+        |> String.fromList
 
 parseInput : String -> List (List Char)
 parseInput input =
@@ -48,44 +46,45 @@ parseInput input =
         |> String.split "\n"
         |> map String.toList
 
-toSnafuDecimal : Int -> List Int
-toSnafuDecimal number =
-    foldl (\i (num, list) ->
-                (modBy (5^i) number, (num // (5^i)) :: list) 
-            ) (number, []) (reverse (range 0 20))
-            |> Tuple.second
-            |> reverse
-
-toSnafu : List Int -> String
-toSnafu digits =
-    digits
-        |> List.foldr (\digit (carry, str) ->
-                case carry + digit of
-                    0 -> (0, '0' :: str)
-                    1 -> (0, '1' :: str)
-                    2 -> (0, '2' :: str)
-                    3 -> (1, '=' :: str)
-                    4 -> (1, '-' :: str)
-                    _ -> (carry, str)
+sumSnafu : List Char -> List Char -> List Char
+sumSnafu n1 n2 =
+    let
+        maxLen = max (length n1) (length n2) - 1
+        normalize n = 
+            List.repeat (maxLen - (length n)) '0' ++ n
+                |> (::) '0'
+                |> reverse
+        convert c = case c of
+            '0' -> 0
+            '1' -> 1
+            '2' -> 2
+            '-' -> -1
+            '=' -> -2
+            _ -> 0
+    in
+    LE.zip (normalize n1) (normalize n2)
+        |> foldl (\(v1,v2) (carry, result) ->
+                case (convert v1) + (convert v2) + carry of
+                    0 -> (0, '0' :: result)
+                    1 -> (0, '1' :: result)
+                    2 -> (0, '2' :: result)
+                    3 -> (1, '=' :: result)
+                    4 -> (1, '-' :: result)
+                    5 -> (1, '0' :: result)
+                    i -> 
+                        if i == -1 then
+                            (0, '-' :: result)
+                        else if i == -2 then
+                            (0, '=' :: result)
+                        else if i == -3 then
+                            (-1, '2' :: result)
+                        else if i == -4 then
+                            (-1, '1' :: result)
+                        else --if i == -5 then
+                            (-1, '0' :: result)
             ) (0, [])
         |> Tuple.second
         |> LE.dropWhile (\c -> c == '0')
-        |> String.fromList
-
-toDecimal : List Char -> number
-toDecimal line =
-    line
-        |> reverse
-        |> foldl (\char (total, index) ->
-                case char of
-                    '1' -> (total + (5^index), index + 1)
-                    '2' -> (total + (2 * (5^index)), index + 1)
-                    '0' -> (total, index + 1)
-                    '=' -> (total - (5^index * 2), index + 1)
-                    '-' -> (total - (5^index), index + 1)
-                    _ -> (total, index + 1)
-            ) (0, 0)
-        |> Tuple.first
 
 --------------------------------------------------------------
 
