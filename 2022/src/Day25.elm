@@ -49,10 +49,9 @@ parseInput input =
 sumSnafu : List Char -> List Char -> List Char
 sumSnafu n1 n2 =
     let
-        maxLen = max (length n1) (length n2) - 1
+        maxLen = max (length n1) (length n2) + 1
         normalize n = 
             List.repeat (maxLen - (length n)) '0' ++ n
-                |> (::) '0'
                 |> reverse
         convert c = case c of
             '0' -> 0
